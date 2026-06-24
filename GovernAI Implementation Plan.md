@@ -95,6 +95,50 @@ The Governance Services Layer acts as the orchestration layer that keeps all mod
 
 ---
 
+## Suggested Project Structure
+
+```text
+governai/
+│
+├── app.py
+│
+├── pages/
+│   ├── Inventory.py
+│   ├── Risk_Assessment.py
+│   ├── Compliance.py
+│   ├── Monitoring.py
+│   └── Reports.py
+│
+├── services/
+│   ├── risk_service.py
+│   ├── compliance_service.py
+│   ├── monitoring_service.py
+│   ├── audit_service.py
+│   └── report_service.py
+│
+├── data/
+│   ├── seed_data.py
+│   ├── sample_metrics.csv
+│   └── governai.db
+│
+├── ai/
+│   ├── governance_assistant.py
+│   └── presidio_scanner.py
+│
+└── README.md
+```
+
+### Structure Overview
+
+* **app.py** → Main Streamlit application entry point
+* **pages/** → Inventory, Risk Assessment, Compliance, Monitoring, and Reporting pages
+* **services/** → Core governance workflows and business logic
+* **data/** → SQLite database, seed data, and monitoring datasets
+* **ai/** → AI-assisted governance features and PII detection
+* **README.md** → Project documentation and implementation plan
+
+---
+
 ## Shared Governance Data Model
 
 Each AI system contains:
@@ -123,6 +167,8 @@ The platform is initialized with representative AI systems covering multiple gov
 | CreditLens – Loan Scoring      | Credit assessment and approval               | High Risk    |
 | AskOps – Internal Chatbot      | Employee support and assistance              | Limited Risk |
 | LogSentinel – Anomaly Detector | Operational monitoring and anomaly detection | Minimal Risk |
+
+Sample monitoring data and governance thresholds are preloaded through the seed dataset to demonstrate compliance status changes, monitoring alerts, and audit trail generation during the end-to-end walkthrough.
 
 ---
 
@@ -153,6 +199,8 @@ Monitoring Setup
       ↓
 Audit Log Entry
 ```
+
+The newly registered system becomes part of the governance inventory and can be monitored throughout its lifecycle.
 
 ---
 
@@ -211,6 +259,8 @@ Threshold breaches automatically:
 * Generate audit events
 * Appear in governance reports
 * Trigger governance review workflows
+
+This ensures monitoring directly influences governance outcomes.
 
 ---
 
@@ -329,6 +379,19 @@ The platform architecture remains model-agnostic and can support:
 * Enterprise-approved Open Source Models
 
 without requiring changes to the governance workflow.
+
+---
+
+## Development Priority
+
+1. Shared Data Model
+2. Inventory Module
+3. Risk Classification
+4. Compliance Mapping
+5. Monitoring & Threshold Logic
+6. Audit Trail
+7. Report Generation
+8. AI-Assisted Governance Features
 
 ---
 
