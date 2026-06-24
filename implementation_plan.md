@@ -185,7 +185,18 @@ governai/
 │   └── helpers.py         # UI helper functions, date formatters
 └── assets/                # Logos, custom CSS (if any)
 ```
+##  Seed Data
 
+Four sample systems spanning different model types, vendor types, and risk tiers. Monitoring metrics are pre-seeded with one system already at a warning threshold to demonstrate the status-flip during the walkthrough.
+
+| System | Model | Type | Vendor | Risk Tier | Key Notes |
+|---|---|---|---|---|---|
+| **HireIQ — Resume Screener** | OpenAI GPT-4o | LLM | Proprietary API | **High** | EU AI Act Annex III (hiring); PII: names, demographics |
+| **CreditLens — Loan Scorer** | XGBoost | Classical ML | Open-source, self-hosted | **High** | Score-output, not chat; org bears full accountability; PII: financial data |
+| **AskOps — Internal Chatbot** | Mistral Large via Azure AI Foundry | LLM | Azure AI Foundry | **Limited** | Managed platform with built-in content filters; no PII |
+| **MeetBot — Scheduling Agent** | Llama 3.1 70B | Agentic | Open-source, self-hosted | **Limited–High (borderline)** | Multi-step agent (email → calendar → booking); each step individually traced; moderate PII |
+
+---
 ---
 
 ## STEP 5: Module Breakdown
