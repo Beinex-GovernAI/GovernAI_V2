@@ -6,10 +6,6 @@
 
 ---
 
-## Why This Document Exists
-
-Three planning documents existed in parallel. This file merges them into a single source of truth the team can build from. The hierarchy is: the project brief sets the success criteria; `implementation_gri.md` provides the concrete technical decisions; the architecture overview contributes the governance workflow framing and framework coverage details.
-
 ---
 
 ## 1. Resolved Open Questions
