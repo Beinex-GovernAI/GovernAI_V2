@@ -5,10 +5,15 @@ The objective is to build "GovernAI", a Streamlit-based AI Governance Platform M
 
 ## Key Design Decisions
 
-> [!NOTE]
-> 1. **User Identity:** Implement a lightweight session-based role selector (Admin, Compliance Officer, Engineer) in the sidebar for the MVP. This improves audit trail realism and user context during the demo while avoiding the complexity of full authentication.
-> 2. **Metrics Data Source:** Prioritize a simulation-based ingestion workflow (e.g., "Generate Breach Scenario" button) to reliably and instantly demonstrate threshold breaches, automated compliance status degradation, and audit logging during the walkthrough. CSV upload will be treated as a secondary, stretch feature.
-> 3. **Report Format:** Generate reports directly as PDF documents (using ReportLab). Governance and compliance workflows typically require auditor-ready, formatted artifacts, making PDF the preferred export format for the MVP.
+### 1. Architectural Decisions (Technical Depth)
+* **SQLite with UUID Primary Keys:** To enable the three developers to work and seed sample data independently without primary key collisions during Git merges, we are using UUIDs (TEXT) rather than auto-incrementing integers.
+* **Normalized Relational Schema over JSON Blobs:** Data sources, risk assessments, and compliance questionnaires are modeled as discrete relational tables. This prevents merge conflicts, enforces foreign key constraints, and ensures all fields are queryable for reporting.
+* **Dynamic State Coupling ("The Golden Thread"):** Compliance status is not a static text field; it is dynamically calculated and updated by the backend. A threshold breach in the monitoring module automatically triggers state degradation in the AI Inventory and writes to the audit log.
+
+### 2. MVP Scoping Decisions (Timeline & Demo Impact)
+* **Session-Based Identity (vs. Full Authentication):** To meet the 3-day deadline, we are avoiding complex auth systems (OAuth/Firebase). Instead, we implement a sidebar role-selector (Admin, Compliance Officer, Engineer) to instantly simulate different user perspectives and generate realistic, role-attributed audit logs.
+* **Simulation-First Ingestion (vs. CSV Upload):** A live demo is highly sensitive to input data. We prioritize a "Generate Breach Scenario" button to instantly trigger breaches and show the dynamic compliance update. CSV upload is relegated to a stretch feature.
+* **Direct PDF Exports (via ReportLab):** Compliance audits require rigid, uneditable, and formatted evidence. We generate reports directly in PDF format (using ReportLab) rather than simple markdown or HTML exports to mimic real governance workflows.
 
 ---
 
@@ -76,7 +81,7 @@ To provide organizations with a centralized internal tool to inventory their AI 
 
 ## STEP 3: Database Design
 
-We will use a normalized SQLite schema managed via Python's standard `sqlite3` library for simplicity in the MVP.
+We will use a normalized SQLite schema managed via Python's standard `sqlite3` library. All tables will use UUID primary keys to prevent ID collisions during parallel writes, and we avoid JSON blobs to ensure individual fields are queryable.
 
 **1. AI Systems (`ai_systems`)**
 - `id` (TEXT) - Primary Key (UUID)
@@ -86,23 +91,35 @@ We will use a normalized SQLite schema managed via Python's standard `sqlite3` l
 - `model_vendor` (TEXT)
 - `model_type` (TEXT) - (LLM, Classical ML, Computer Vision, Agentic AI)
 - `model_source` (TEXT) - (Open Source, Proprietary)
-- `contains_pii` (TEXT) - (Yes, No)
 - `agentic_trace_required` (TEXT) - (Yes, No)
-- `data_sources` (TEXT)
 - `risk_tier` (TEXT) - (Prohibited, High, Limited, Minimal, Pending)
 - `compliance_status` (TEXT) - (Compliant, At Risk, Non-Compliant, Pending)
 - `created_at` (TEXT) - ISO8601 Timestamp
 - `updated_at` (TEXT) - ISO8601 Timestamp
 
-**2. Risk Assessments (`risk_assessments`)**
+**2. Data Sources (`data_sources`)**
 - `id` (TEXT) - Primary Key (UUID)
 - `system_id` (TEXT) - Foreign Key -> `ai_systems.id`
-- `question_responses` (TEXT) - JSON string of the questionnaire answers
+- `source_name` (TEXT)
+- `description` (TEXT)
+- `contains_pii` (INTEGER) - 0 or 1 (Flags risk engine to auto-raise tier)
+- `pii_categories` (TEXT) - Comma-separated list (e.g., "names, financial")
+
+**3. Risk Assessments (`risk_assessments`)**
+- `id` (TEXT) - Primary Key (UUID)
+- `system_id` (TEXT) - Foreign Key -> `ai_systems.id`
 - `calculated_tier` (TEXT)
 - `assessed_by` (TEXT)
 - `assessed_at` (TEXT) - ISO8601 Timestamp
 
-**3. Compliance Records (`compliance_records`)**
+**4. Risk Classification Answers (`risk_classification_answers`)**
+- `id` (TEXT) - Primary Key (UUID)
+- `assessment_id` (TEXT) - Foreign Key -> `risk_assessments.id`
+- `question_key` (TEXT)
+- `answer` (TEXT)
+- `weight` (REAL)
+
+**5. Compliance Records (`compliance_records`)**
 - `id` (TEXT) - Primary Key (UUID)
 - `system_id` (TEXT) - Foreign Key -> `ai_systems.id`
 - `framework` (TEXT) - (e.g., EU AI Act, NIST)
@@ -112,7 +129,7 @@ We will use a normalized SQLite schema managed via Python's standard `sqlite3` l
 - `evidence_link` (TEXT)
 - `last_updated` (TEXT) - ISO8601 Timestamp
 
-**4. Monitoring Metrics (`monitoring_metrics`)**
+**6. Monitoring Metrics (`monitoring_metrics`)**
 - `id` (TEXT) - Primary Key (UUID)
 - `system_id` (TEXT) - Foreign Key -> `ai_systems.id`
 - `metric_name` (TEXT) - (e.g., Drift, Bias, Hallucination, Cost)
@@ -121,13 +138,21 @@ We will use a normalized SQLite schema managed via Python's standard `sqlite3` l
 - `is_breached` (INTEGER) - 0 or 1
 - `timestamp` (TEXT) - ISO8601 Timestamp
 
-**5. Audit Logs (`audit_logs`)**
+**7. Audit Logs (`audit_logs`)**
 - `id` (TEXT) - Primary Key (UUID)
 - `system_id` (TEXT) - Foreign Key -> `ai_systems.id`
 - `user` (TEXT) - Who made the change
 - `action` (TEXT) - (e.g., STATUS_CHANGE, METRIC_BREACH, SYSTEM_CREATED)
 - `details` (TEXT) - JSON string containing old_value, new_value, or breach context
 - `timestamp` (TEXT) - ISO8601 Timestamp
+
+**8. Agent Action Trace (`agent_action_trace`)**
+- `id` (TEXT) - Primary Key (UUID)
+- `audit_log_id` (TEXT) - Foreign Key -> `audit_logs.id`
+- `step_number` (INTEGER)
+- `action_taken` (TEXT)
+- `tool_used` (TEXT)
+- `decision_rationale` (TEXT)
 
 ---
 
@@ -196,15 +221,16 @@ governai/
 **The Golden Thread (Data Lifecycle Flow):**
 The true value of GovernAI is that data does not sit in silos. Here is how data flows through the application:
 
-1. **System Created:** User creates "HR Resume Screener" -> DB creates `ai_systems` record. `audit_svc` logs `SYSTEM_CREATED`.
-2. **Risk Classified:** User answers risk questionnaire -> `risk_svc` assigns "High-Risk" tier. Updates `ai_systems.risk_tier`. `audit_svc` logs `TIER_ASSIGNED`.
-3. **Controls Generated:** `compliance_svc` detects "High-Risk" and automatically seeds `compliance_records` with EU AI Act High-Risk obligations (e.g., Data Governance, Human Oversight) and maps them to NIST.
-4. **Metrics Ingested:** User uploads a CSV or simulates metrics. `monitoring_svc` processes a Bias indicator of 0.85 (predefined threshold is 0.80).
-5. **The Cross-Wiring Trigger:** `monitoring_svc` detects the breach. It executes an atomic backend flow:
+1. **System Created:** User creates "Meeting Scheduling Agent" (`agentic_trace_required=Yes`). DB creates `ai_systems` record. `audit_svc` logs `SYSTEM_CREATED`.
+2. **Data Source Flagged:** User adds calendar/contacts data source. If `contains_pii = 1`, `risk_svc` reads this and auto-raises the suggested risk tier.
+3. **Risk Classified:** User completes the risk questionnaire -> `risk_svc` assigns the tier. Individual answers are saved to `risk_classification_answers`. `audit_svc` logs `TIER_ASSIGNED`.
+4. **Controls Generated:** `compliance_svc` automatically seeds `compliance_records` with EU AI Act obligations (e.g., Human Oversight) and maps them to NIST based on the risk tier.
+5. **Agent Runs (Simulated):** The agent performs three steps (e.g., read email, check calendar, book meeting). Each step is logged to `agent_action_trace` linked under one parent `audit_logs` row.
+6. **The Cross-Wiring Trigger:** User simulates a metric breach (e.g., Cost > $100). `monitoring_svc` detects the breach and executes an atomic backend flow:
    - Saves the metric in `monitoring_metrics` with `is_breached = True`.
    - Calls `ai_system_svc.update_status(system_id, "Non-Compliant")`.
-   - Calls `audit_svc.log_action("METRIC_BREACH", "Bias exceeded 0.80. Status changed to Non-Compliant")`.
-6. **Report Exported:** User clicks "Export Report". `report_gen` compiles the system details, the compliance completeness score, the active breached metric alert, and the audit trail into a single document, proving end-to-end governance.
+   - Calls `audit_svc.log_action("METRIC_BREACH", "Cost exceeded $100. Status changed to Non-Compliant")`.
+7. **Report Exported:** User clicks "Export Report". `report_gen` compiles the system details, PII evidence from `data_sources`, the completeness score, the breach alert, and the full audit trail (including the step-by-step agent trace) into a single PDF document.
 
 ---
 
@@ -278,7 +304,7 @@ The true value of GovernAI is that data does not sit in silos. Here is how data 
 
 ## STEP 9: Implementation Sequence
 
-Once this plan is approved, We will begin execution in the following sequence:
+Once this plan is approved, I will begin execution in the following sequence:
 
 1. **Phase 1: Foundation (Database & Structure)**
    - Initialize the `governai/` directory structure.
