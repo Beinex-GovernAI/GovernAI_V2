@@ -5,12 +5,12 @@ The objective is to build "GovernAI", a Streamlit-based AI Governance Platform M
 
 ## Key Design Decisions
 
-### 1. Architectural Decisions (Technical Depth)
+### 1. Architectural Decisions 
 * **SQLite with UUID Primary Keys:** To enable the three developers to work and seed sample data independently without primary key collisions during Git merges, we are using UUIDs (TEXT) rather than auto-incrementing integers.
 * **Normalized Relational Schema over JSON Blobs:** Data sources, risk assessments, and compliance questionnaires are modeled as discrete relational tables. This prevents merge conflicts, enforces foreign key constraints, and ensures all fields are queryable for reporting.
 * **Dynamic State Coupling ("The Golden Thread"):** Compliance status is not a static text field; it is dynamically calculated and updated by the backend. A threshold breach in the monitoring module automatically triggers state degradation in the AI Inventory and writes to the audit log.
 
-### 2. MVP Scoping Decisions (Timeline & Demo Impact)
+### 2. MVP Scoping Decisions 
 * **Session-Based Identity (vs. Full Authentication):** To meet the 3-day deadline, we are avoiding complex auth systems (OAuth/Firebase). Instead, we implement a sidebar role-selector (Admin, Compliance Officer, Engineer) to instantly simulate different user perspectives and generate realistic, role-attributed audit logs.
 * **Simulation-First Ingestion (vs. CSV Upload):** A live demo is highly sensitive to input data. We prioritize a "Generate Breach Scenario" button to instantly trigger breaches and show the dynamic compliance update. CSV upload is relegated to a stretch feature.
 * **Direct PDF Exports (via ReportLab):** Compliance audits require rigid, uneditable, and formatted evidence. We generate reports directly in PDF format (using ReportLab) rather than simple markdown or HTML exports to mimic real governance workflows.
