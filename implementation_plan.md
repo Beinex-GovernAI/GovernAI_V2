@@ -5,12 +5,12 @@ The objective is to build "GovernAI", a Streamlit-based AI Governance Platform M
 
 ## Key Design Decisions
 
-### 1. Architectural Decisions 
-* **SQLite with UUID Primary Keys:** To enable the three developers to work and seed sample data independently without primary key collisions during Git merges, we are using UUIDs (TEXT) rather than auto-incrementing integers.
+### 1. Architectural Decisions (Technical Depth)
+* **PostgreSQL with UUID Primary Keys:** PostgreSQL was selected for better relational integrity, transactional consistency (ACID), stronger foreign key support, enterprise-grade database features, and multi-user scalability, aligning with real-world AI governance platforms. To enable the three developers to work and seed sample data independently without primary key collisions during Git merges, we are using UUIDs (stored as TEXT/UUID) rather than auto-incrementing integers.
 * **Normalized Relational Schema over JSON Blobs:** Data sources, risk assessments, and compliance questionnaires are modeled as discrete relational tables. This prevents merge conflicts, enforces foreign key constraints, and ensures all fields are queryable for reporting.
 * **Dynamic State Coupling ("The Golden Thread"):** Compliance status is not a static text field; it is dynamically calculated and updated by the backend. A threshold breach in the monitoring module automatically triggers state degradation in the AI Inventory and writes to the audit log.
 
-### 2. MVP Scoping Decisions 
+### 2. MVP Scoping Decisions (Timeline & Demo Impact)
 * **Session-Based Identity (vs. Full Authentication):** To meet the 3-day deadline, we are avoiding complex auth systems (OAuth/Firebase). Instead, we implement a sidebar role-selector (Admin, Compliance Officer, Engineer) to instantly simulate different user perspectives and generate realistic, role-attributed audit logs.
 * **Simulation-First Ingestion (vs. CSV Upload):** A live demo is highly sensitive to input data. We prioritize a "Generate Breach Scenario" button to instantly trigger breaches and show the dynamic compliance update. CSV upload is relegated to a stretch feature.
 * **Direct PDF Exports (via ReportLab):** Compliance audits require rigid, uneditable, and formatted evidence. We generate reports directly in PDF format (using ReportLab) rather than simple markdown or HTML exports to mimic real governance workflows.
@@ -32,9 +32,14 @@ To provide organizations with a centralized internal tool to inventory their AI 
 7. **Reporting:** Export audit-ready compliance reports for individual systems.
 
 **Non-Functional Requirements:**
-1. **Tech Stack:** Streamlit (Frontend), SQLite (Database), Python (Backend).
-2. **Data Integrity:** Shared, normalized data model acting as the single source of truth.
+1. **Tech Stack:** Streamlit (Frontend), PostgreSQL (Database), SQLAlchemy ORM (Data Access Layer), psycopg (Database Driver), Python (Backend).
+2. **Data Integrity:** Shared, normalized PostgreSQL database acting as the single source of truth, enforcing referential integrity and transactional consistency (ACID).
 3. **Delivery:** Functional end-to-end flow over disconnected polished screens. Seeded with realistic sample data.
+
+**Assumptions & Ambiguities:**
+- *Assumption:* A PostgreSQL database instance is available locally or hosted for the Streamlit application to connect to.
+- *Assumption:* "Compliance Status" is a derived state (e.g., Compliant, Non-Compliant, At Risk) influenced by both manual checklist completion and automated monitoring metrics.
+- *Ambiguity:* The exact questions for the risk questionnaire are not strictly defined; we will use standard representative EU AI Act criteria.
 
 ---
 
@@ -52,6 +57,7 @@ To provide organizations with a centralized internal tool to inventory their AI 
           |                  |                   |                  |
 +---------v------------------v-------------------v------------------v---------+
 |                               PYTHON BACKEND                                |
+|                        (SQLAlchemy Data Access Layer)                       |
 |  +----------------+  +-------------------+  +----------------------------+  |
 |  | CRUD Services  |  | Risk Engine       |  | Compliance Mapping Engine  |  |
 |  +----------------+  +-------------------+  +----------------------------+  |
@@ -61,7 +67,8 @@ To provide organizations with a centralized internal tool to inventory their AI 
 +------------------------------------+----------------------------------------+
                                      |
 +------------------------------------v----------------------------------------+
-|                            SQLITE DATABASE (ORM/SQL)                        |
+|                             POSTGRESQL DATABASE                             |
+|                          (Single Source of Truth)                           |
 |  [AI Systems] [Risk Assessments] [Compliance Records] [Metrics] [Audit Logs]|
 +-----------------------------------------------------------------------------+
 ```
@@ -69,14 +76,14 @@ To provide organizations with a centralized internal tool to inventory their AI 
 **Component Interaction & Data Flow:**
 1. **User -> Frontend:** User interacts with Streamlit pages.
 2. **Frontend -> Backend Services:** Streamlit calls modular Python functions (e.g., `update_system_status()`, `ingest_metrics()`).
-3. **Backend -> Database:** Services execute SQLite transactions. 
+3. **Backend -> Database:** Backend services perform SQLAlchemy ORM operations against PostgreSQL (utilizing the psycopg driver).
 4. **Cross-Component Flow:** If the `Monitoring Engine` detects a metric breach, it emits an event/calls a function in the `CRUD Services` to update the AI System's status, which in turn calls the `Audit Logging Layer` to record the change.
 
 ---
 
 ## STEP 3: Database Design
 
-We will use a normalized SQLite schema managed via Python's standard `sqlite3` library. All tables will use UUID primary keys to prevent ID collisions during parallel writes, and we avoid JSON blobs to ensure individual fields are queryable.
+The application uses PostgreSQL as the centralized relational database. SQLAlchemy ORM manages schema definitions and database interactions while psycopg provides PostgreSQL connectivity. All tables will use UUID primary keys to prevent ID collisions during parallel writes, and we avoid JSON blobs to ensure individual fields are queryable.
 
 **1. AI Systems (`ai_systems`)**
 - `id` (TEXT) - Primary Key (UUID)
@@ -157,7 +164,9 @@ We will use a normalized SQLite schema managed via Python's standard `sqlite3` l
 governai/
 ├── app.py                 # Main Streamlit entry point (Navigation, layout)
 ├── database/
-│   ├── db_manager.py      # SQLite connection pooling, table creation scripts
+│   ├── db.py              # Creates the SQLAlchemy engine and session
+│   ├── models.py          # Contains SQLAlchemy ORM models
+│   ├── init_db.py         # Creates database tables
 │   └── seed_data.py       # Script to populate the 3-4 realistic sample systems
 ├── services/
 │   ├── ai_system_svc.py   # Logic for CRUD operations on systems
@@ -180,18 +189,7 @@ governai/
 │   └── helpers.py         # UI helper functions, date formatters
 └── assets/                # Logos, custom CSS (if any)
 ```
-##  Seed Data
 
-Four sample systems spanning different model types, vendor types, and risk tiers. Monitoring metrics are pre-seeded with one system already at a warning threshold to demonstrate the status-flip during the walkthrough.
-
-| System | Model | Type | Vendor | Risk Tier | Key Notes |
-|---|---|---|---|---|---|
-| **HireIQ — Resume Screener** | OpenAI GPT-4o | LLM | Proprietary API | **High** | EU AI Act Annex III (hiring); PII: names, demographics |
-| **CreditLens — Loan Scorer** | XGBoost | Classical ML | Open-source, self-hosted | **High** | Score-output, not chat; org bears full accountability; PII: financial data |
-| **AskOps — Internal Chatbot** | Mistral Large via Azure AI Foundry | LLM | Azure AI Foundry | **Limited** | Managed platform with built-in content filters; no PII |
-| **MeetBot — Scheduling Agent** | Llama 3.1 70B | Agentic | Open-source, self-hosted | **Limited–High (borderline)** | Multi-step agent (email → calendar → booking); each step individually traced; moderate PII |
-
----
 ---
 
 ## STEP 5: Module Breakdown
@@ -245,7 +243,7 @@ The true value of GovernAI is that data does not sit in silos. Here is how data 
 *Total Duration: Wednesday - Friday (3-Day Compressed Timeline).*
 
 - **Developer 1 (Data & Core Backend):**
-  - Setup SQLite database schema and connection (`db_manager.py`).
+  - Setup PostgreSQL connection (`db.py`), define SQLAlchemy models (`models.py`), and initialize schema (`init_db.py`).
   - Create the `seed_data.py` script with the following realistic sample systems:
     - **Resume Screening AI** (High Risk, LLM)
     - **Loan Approval AI** (High Risk, Classical ML)
@@ -271,7 +269,7 @@ The true value of GovernAI is that data does not sit in silos. Here is how data 
 
 **Suggested Timeline (3-Day Sprint):**
 - **Wednesday (Foundation & Core Setup):**
-  - Complete shared data model agreement, database setup (`db_manager.py`), and seeding of sample systems (`seed_data.py`).
+  - Complete shared data model agreement, database setup/initialization (`db.py`, `models.py`, `init_db.py`), and seeding of sample systems (`seed_data.py`).
   - Scaffolding of the multi-page Streamlit application (`app.py`, `1_Dashboard.py`, `2_Inventory.py`).
   - Implement risk engine logic and UI questionnaire (`risk_svc.py`, `3_Risk_Setup.py`).
 - **Thursday (Compliance, Monitoring & Integration):**
@@ -288,7 +286,7 @@ The true value of GovernAI is that data does not sit in silos. Here is how data 
 ## STEP 8: MVP Roadmap
 
 **Must Have (MVP for Friday):**
-- Shared SQLite data model (The Foundation).
+- Shared PostgreSQL data model (The Foundation).
 - System inventory (View/Add).
 - Risk questionnaire mapping to EU AI Act tiers.
 - Compliance checklist with completeness score.
@@ -310,11 +308,13 @@ The true value of GovernAI is that data does not sit in silos. Here is how data 
 
 ## STEP 9: Implementation Sequence
 
-Once this plan is approved, We will begin execution in the following sequence:
+Once this plan is approved, I will begin execution in the following sequence:
 
 1. **Phase 1: Foundation (Database & Structure)**
    - Initialize the `governai/` directory structure.
-   - Create `database/db_manager.py` and implement the table schemas.
+   - Setup PostgreSQL database engine and session configuration in `database/db.py`.
+   - Implement the table schemas as SQLAlchemy models in `database/models.py`.
+   - Create database initialization script in `database/init_db.py` to create tables.
 2. **Phase 2: Core Services & Seed Data**
     - Implement backend services (`ai_system_svc.py`, `audit_svc.py`).
     - Implement `seed_data.py` to populate the database with the sample systems (Resume Screening AI, Loan Approval AI, Customer Support Assistant, Meeting Scheduling Agent).
