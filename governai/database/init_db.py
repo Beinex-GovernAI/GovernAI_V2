@@ -1,3 +1,8 @@
+import sys
+import os
+# Add the governai folder to the Python path so it can resolve database/services modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database.db import engine, Base
 # Import all models to ensure they are registered with Base before creating tables
 from database.models import (

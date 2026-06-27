@@ -1,3 +1,8 @@
+import sys
+import os
+# Add the governai folder to the Python path so it can resolve database/services modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database.db import SessionLocal, engine, Base
 from database.models import AISystem, DataSource
 from services.ai_system_svc import create_system, add_data_source
