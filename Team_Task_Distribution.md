@@ -49,26 +49,56 @@ This will open the app automatically in your browser at `http://localhost:8501`.
 
 ---
 
-## Next Steps & Task Distribution
+## 💻 GitHub Collaboration Workflow (How we avoid breaking code)
 
-Because I laid out the foundation, the app works end-to-end, but it is very basic. Now we need to divide and conquer to flesh out the actual features and make it look amazing. Here is the proposed task breakdown for the next two days:
+To ensure we don't accidentally overwrite each other's code, we will use **Feature Branches**. This means you will do your work on a separate "copy" of the code, and then we merge it into the `main` branch when it's finished.
 
-### 👩‍💻 Aleena: Risk & Compliance Engine
-**Goal:** Make our risk assessment and compliance mapping realistic and comprehensive.
-* **Task 1 (Risk Questionnaire):** Right now, `pages/3_Risk_Setup.py` only has 3 basic questions. We need to expand this to at least 7-10 realistic questions based on the EU AI Act.
-* **Task 2 (NIST Integration):** Currently, `pages/4_Compliance.py` only generates EU AI Act controls. We need to add a second framework (NIST AI RMF) and show how controls map across both.
-* **Task 3 (UI Polish):** Improve the layout of your pages by adding better Streamlit columns, tooltips for the questions, and progress bars for the checklists.
+**Rule #1:** Coordinate in the group chat before you edit a file so two people aren't working on the same file at the same time.
 
-### 👩‍💻 Grishma: Monitoring Dashboard & Data Ingestion
-**Goal:** Make the platform visually impressive and handle real data.
-* **Task 1 (Visual Charts):** The current dashboard (`pages/1_Dashboard.py`) is just a basic text table. We need to implement `plotly` or `altair` to show beautiful visual charts (e.g., a pie chart of compliant vs non-compliant systems).
-* **Task 2 (CSV Upload):** In `pages/5_Monitoring.py`, we currently only have a "Simulate" button for metrics. We need to add a file uploader (`st.file_uploader`) so users can upload a CSV of real metrics and have the system parse it.
-* **Task 3 (PDF Styling):** The PDF export in `reports/report_gen.py` works, but it looks a bit plain. Add a company logo, better colors, and formatting to the PDF generation.
+**When you start working:**
+1. Always pull the latest code first:
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+2. Create a new branch for your specific task (e.g., `aleena/llm-feature`):
+   ```bash
+   git checkout -b yourname/your-feature
+   ```
+3. Do your coding, testing, and save your files.
+4. Commit your changes:
+   ```bash
+   git add .
+   git commit -m "Added the LLM risk predictor logic"
+   ```
+5. Push your branch to GitHub:
+   ```bash
+   git push origin yourname/your-feature
+   ```
+6. Go to the GitHub website and open a **Pull Request (PR)**. I will review it and click Merge to add it to the main project!
+
+---
+
+## Next Steps & Task Distribution (Backend + Frontend)
+
+Because I laid out the foundation, the app works end-to-end, but it is very basic. Now we need to divide and conquer to flesh out the actual backend logic and frontend features.
+
+### 👩‍💻 Aleena: LLM Integration & Risk Engine
+**Goal:** Implement the Mentor's stretch goal (LLM integration) and expand our risk backend logic.
+* **Task 1 (Backend/AI):** Build an LLM-powered assistant function. It should take the system's "Business Purpose" text and use an LLM API (like OpenAI) to automatically suggest a Risk Tier.
+* **Task 2 (Backend):** Right now, `services/risk_svc.py` only has 3 basic questions. Expand the backend Python logic to include at least 7-10 realistic EU AI Act questions with a proper scoring mechanism.
+* **Task 3 (Frontend):** In `pages/3_Risk_Setup.py`, add an "AI Auto-Predict Risk" button that calls your new LLM function and displays the result to the user.
+
+### 👩‍💻 Grishma: Data Ingestion Backend & Multi-Framework Compliance
+**Goal:** Expand the backend compliance engine to support multiple frameworks and process real CSV data.
+* **Task 1 (Backend):** Currently, the Compliance engine only maps to the "EU AI Act". You need to update `services/compliance_svc.py` to also generate checklists for the **NIST AI RMF framework**.
+* **Task 2 (Backend/Data):** In `services/monitoring_svc.py`, write a Python parser that can read an uploaded CSV of drift/bias metrics and loop through them to check for threshold breaches.
+* **Task 3 (Frontend):** In `pages/5_Monitoring.py`, replace our basic "Simulate" button with a `st.file_uploader` so users can upload their real metric CSVs to your new backend parser.
 
 ### 👨‍💻 Abhay (Me): Database Management & Core Integration
-**Goal:** Ensure the cloud database runs smoothly and all your components connect perfectly.
-* **Task 1 (Cloud DB):** I am managing our Supabase cloud PostgreSQL instance. I will send you both the `.env` connection string so we are all sharing the exact same live database (no one has to install PostgreSQL locally!).
-* **Task 2 (The Golden Thread):** I'll ensure that when Grishma's CSV upload triggers a breach, it correctly cascades into Aleena's compliance status and logs to the audit trail securely.
-* **Task 3 (Code Reviews & Merges):** I'll handle the GitHub repository merges to make sure our code integrates without breaking.
+**Goal:** Ensure the cloud database runs smoothly and manage code integrations.
+* **Task 1 (Cloud DB & DevOps):** I am managing our Supabase cloud instance. Since we are sharing the database, I will manage any schema changes if you guys need new tables.
+* **Task 2 (The Golden Thread):** I'll ensure that when Grishma's new NIST compliance logic is added, it cascades perfectly into the Audit Log and PDF reports.
+* **Task 3 (Git Flow Master):** I'll be reviewing your Pull Requests and handling the merges on GitHub so we don't get merge conflicts.
 
 Let me know if you are both good with this breakdown! Once we agree, we can get started!
