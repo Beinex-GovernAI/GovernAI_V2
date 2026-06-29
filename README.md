@@ -32,7 +32,7 @@ Since the database is hosted in the cloud (Supabase), you don't need to install 
 1. Create a file named `.env` at the root of the project.
 2. Add the following line to it:
 ```text
-DATABASE_URL=postgresql+psycopg://postgres.mbnogucwazwgadsbcmvx:Unemployment%4020026@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
+DATABASE_URL= #database url
 ```
 *(Note: Keep this `.env` file local. It is already added to `.gitignore` so your database password won't be pushed to GitHub).*
 
