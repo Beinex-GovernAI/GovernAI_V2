@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from database.db import SessionLocal
 from services.ai_system_svc import get_systems
-from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metric, get_metrics
+from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
 from services.audit_svc import get_audit_logs
 
 st.set_page_config(page_title="Monitoring", page_icon="📈", layout="wide")
@@ -25,19 +25,35 @@ else:
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("Simulate Metric Ingestion")
-        st.info("Use this simulation tool to demonstrate how threshold breaches trigger the Golden Thread (automated status degradation and audit logging).")
-        
-        with st.form("metric_ingestion_form"):
-            metric_to_sim = st.selectbox("Select Metric", list(DEFAULT_THRESHOLDS.keys()))
-            sim_value = st.number_input("Metric Value", min_value=0.0, value=0.0, step=0.01)
-            
-            st.write(f"*(Threshold for {metric_to_sim} is {DEFAULT_THRESHOLDS[metric_to_sim]})*")
-            
-            if st.form_submit_button("Ingest Metric"):
-                ingest_metric(db, selected_sys_id, metric_to_sim, sim_value, current_user)
-                st.success(f"Ingested {metric_to_sim}: {sim_value}")
-                st.rerun()
+        st.subheader("Upload Metric Data (CSV)")
+        st.info(
+            "Upload a CSV with columns **metric_name** and **metric_value** to ingest real "
+            "monitoring data. Threshold breaches will automatically trigger status updates "
+            "and audit logging (the Golden Thread)."
+        )
+        st.write(f"**Supported metrics & thresholds:** {DEFAULT_THRESHOLDS}")
+
+        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+
+        if uploaded_file is not None:
+            if st.button("Ingest CSV"):
+                try:
+                    result = ingest_metrics_from_csv(db, selected_sys_id, uploaded_file, current_user)
+                    
+                    st.success(
+                        f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
+                    )
+                    
+                    if result["errors"]:
+                        st.warning("Some rows had issues:")
+                        for err in result["errors"]:
+                            st.write(f"- {err}")
+                    
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"Failed to process CSV: {e}")
 
         st.subheader("Metric History")
         metrics = get_metrics(db, selected_sys_id)
@@ -52,7 +68,7 @@ else:
                     "Breached": "Yes" if m.is_breached else "No"
                 })
             df = pd.DataFrame(metric_data)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
         else:
             st.write("No metrics recorded yet.")
 
@@ -70,7 +86,7 @@ else:
         st.subheader("Audit Trail")
         logs = get_audit_logs(db, selected_sys_id)
         if logs:
-            for log in logs[:10]: # show last 10
+            for log in logs[:10]:
                 with st.expander(f"**{log.action}** - {log.timestamp.split('T')[0]}"):
                     st.write(f"**User:** {log.user}")
                     st.json(log.details)

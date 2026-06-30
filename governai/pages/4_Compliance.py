@@ -26,22 +26,31 @@ else:
     elif selected_sys.risk_tier == "Prohibited":
         st.error("Prohibited systems cannot be made compliant under the EU AI Act.")
     else:
-        # Auto-generate records if they don't exist
+        # Auto-generate records for ALL supported frameworks if they don't exist
         records = generate_checklists(db, selected_sys_id)
         
         score = get_compliance_score(db, selected_sys_id)
-        st.progress(score / 100.0, text=f"Completeness Score: {score}%")
-        
-        st.markdown("### Framework: EU AI Act")
-        for record in records:
-            with st.expander(f"{record.control_id}: {record.control_description}"):
-                with st.form(f"form_{record.id}"):
-                    is_met = st.checkbox("Control Met?", value=bool(record.is_met))
-                    evidence = st.text_input("Evidence Link (URL or doc ref)", value=record.evidence_link or "")
-                    
-                    if st.form_submit_button("Save"):
-                        update_compliance_record(db, record.id, 1 if is_met else 0, evidence)
-                        st.success("Saved!")
-                        st.rerun()
+        st.progress(score / 100.0, text=f"Overall Completeness Score: {score}%")
+
+        # Group records by their actual framework instead of assuming EU AI Act
+        frameworks = sorted(set(r.framework for r in records))
+
+        for framework_name in frameworks:
+            framework_records = [r for r in records if r.framework == framework_name]
+            framework_score = get_compliance_score(db, selected_sys_id, framework=framework_name)
+
+            st.markdown(f"### Framework: {framework_name}")
+            st.progress(framework_score / 100.0, text=f"{framework_name} Completeness: {framework_score}%")
+
+            for record in framework_records:
+                with st.expander(f"{record.control_id}: {record.control_description}"):
+                    with st.form(f"form_{record.id}"):
+                        is_met = st.checkbox("Control Met?", value=bool(record.is_met))
+                        evidence = st.text_input("Evidence Link (URL or doc ref)", value=record.evidence_link or "")
+                        
+                        if st.form_submit_button("Save"):
+                            update_compliance_record(db, record.id, 1 if is_met else 0, evidence)
+                            st.success("Saved!")
+                            st.rerun()
 
 db.close()

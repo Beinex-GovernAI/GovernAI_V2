@@ -16,34 +16,65 @@ EU_AI_ACT_CONTROLS = {
     ]
 }
 
-def generate_checklists(db: Session, system_id: str):
-    """Generates compliance records based on the system's risk tier."""
+# NIST AI Risk Management Framework controls, mapped to the four core functions:
+# GOVERN, MAP, MEASURE, MANAGE
+NIST_AI_RMF_CONTROLS = {
+    "High": [
+        {"id": "NIST-GOVERN-1.1", "desc": "Govern: Establish accountability structures and policies for AI risk management."},
+        {"id": "NIST-MAP-1.1", "desc": "Map: Document the system's context, intended use, and impacted stakeholders."},
+        {"id": "NIST-MEASURE-2.1", "desc": "Measure: Implement quantitative metrics to assess risks such as bias and robustness."},
+        {"id": "NIST-MANAGE-1.1", "desc": "Manage: Establish a documented plan to respond to and mitigate identified AI risks."}
+    ],
+    "Limited": [
+        {"id": "NIST-MAP-1.2", "desc": "Map: Communicate known system limitations and risks to relevant stakeholders."}
+    ],
+    "Minimal": [
+        {"id": "NIST-GOVERN-1.2", "desc": "Govern: Maintain a basic inventory and documentation of the AI system."}
+    ]
+}
+
+# Central registry of frameworks -> their control sets
+FRAMEWORK_CONTROLS = {
+    "EU AI Act": EU_AI_ACT_CONTROLS,
+    "NIST AI RMF": NIST_AI_RMF_CONTROLS
+}
+
+def generate_checklists(db: Session, system_id: str, frameworks: list = None):
+    """
+    Generates compliance records for the given system, based on its risk tier.
+    By default generates checklists for ALL supported frameworks (EU AI Act + NIST AI RMF).
+    Pass `frameworks=["NIST AI RMF"]` to generate only a specific one.
+    """
     system = db.query(AISystem).filter(AISystem.id == system_id).first()
     if not system or system.risk_tier == "Pending":
         return []
-        
+
     tier = system.risk_tier
     if tier == "Prohibited":
         return []
-        
-    controls = EU_AI_ACT_CONTROLS.get(tier, [])
-    
-    # Check if already generated
+
+    if frameworks is None:
+        frameworks = list(FRAMEWORK_CONTROLS.keys())  # generate for both by default
+
+    # Check what's already been generated, keyed by (framework, control_id) so the
+    # two frameworks never collide even if control IDs happened to overlap
     existing = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
-    existing_ids = {r.control_id for r in existing}
-    
-    new_records = []
-    for ctrl in controls:
-        if ctrl["id"] not in existing_ids:
-            record = ComplianceRecord(
-                system_id=system_id,
-                framework="EU AI Act",
-                control_id=ctrl["id"],
-                control_description=ctrl["desc"]
-            )
-            db.add(record)
-            new_records.append(record)
-            
+    existing_keys = {(r.framework, r.control_id) for r in existing}
+
+    for framework_name in frameworks:
+        controls = FRAMEWORK_CONTROLS.get(framework_name, {}).get(tier, [])
+        for ctrl in controls:
+            key = (framework_name, ctrl["id"])
+            if key not in existing_keys:
+                record = ComplianceRecord(
+                    system_id=system_id,
+                    framework=framework_name,
+                    control_id=ctrl["id"],
+                    control_description=ctrl["desc"]
+                )
+                db.add(record)
+                existing_keys.add(key)
+
     db.commit()
     return db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
 
@@ -55,10 +86,19 @@ def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_
         record.evidence_link = evidence_link
         db.commit()
     return record
-    
-def get_compliance_score(db: Session, system_id: str):
-    """Calculates the percentage of met controls."""
-    records = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
+
+def get_compliance_score(db: Session, system_id: str, framework: str = None):
+    """
+    Calculates the percentage of met controls.
+    If `framework` is given (e.g. "NIST AI RMF"), scores only that framework.
+    If omitted, scores across ALL frameworks combined (preserves old behavior
+    for callers like report_gen.py that don't pass a framework).
+    """
+    query = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id)
+    if framework:
+        query = query.filter(ComplianceRecord.framework == framework)
+    records = query.all()
+
     if not records:
         return 0
     met_count = sum(1 for r in records if r.is_met)

@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from database.models import MonitoringMetric, AISystem
 from services.ai_system_svc import update_status
 from services.audit_svc import log_action
+import pandas as pd 
 
 DEFAULT_THRESHOLDS = {
     "Drift": 0.15,
@@ -47,6 +48,43 @@ def ingest_metric(db: Session, system_id: str, metric_name: str, metric_value: f
             update_status(db, system_id, "Non-Compliant", "System Engine", reason=reason)
             
     return new_metric
+
+def ingest_metrics_from_csv(db: Session, system_id: str, csv_file, current_user: str):
+    """
+    Parses an uploaded CSV of metric readings and ingests each row using ingest_metric(),
+    so threshold breach logic and audit logging still apply automatically per row.
+    
+    Expected CSV columns: metric_name, metric_value
+    """
+    try:
+        df = pd.read_csv(csv_file, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        csv_file.seek(0)  # reset file pointer before retrying
+        df = pd.read_csv(csv_file, encoding="utf-16")
+
+    required_columns = {"metric_name", "metric_value"}
+    if not required_columns.issubset(df.columns):
+        raise ValueError(f"CSV must contain columns: {required_columns}. Found: {list(df.columns)}")
+
+    results = []
+    errors = []
+
+    for index, row in df.iterrows():
+        metric_name = str(row["metric_name"]).strip()
+        try:
+            metric_value = float(row["metric_value"])
+        except (ValueError, TypeError):
+            errors.append(f"Row {index + 2}: invalid metric_value '{row['metric_value']}'")
+            continue
+
+        if metric_name not in DEFAULT_THRESHOLDS:
+            errors.append(f"Row {index + 2}: unknown metric_name '{metric_name}', skipped")
+            continue
+
+        new_metric = ingest_metric(db, system_id, metric_name, metric_value, current_user)
+        results.append(new_metric)
+
+    return {"ingested": results, "errors": errors, "total_rows": len(df)}
 
 def get_metrics(db: Session, system_id: str, limit: int = 50):
     """Retrieves recent metrics for a system."""
