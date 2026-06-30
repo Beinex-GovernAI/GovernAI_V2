@@ -49,7 +49,8 @@ else:
                         evidence = st.text_input("Evidence Link (URL or doc ref)", value=record.evidence_link or "")
                         
                         if st.form_submit_button("Save"):
-                            update_compliance_record(db, record.id, 1 if is_met else 0, evidence)
+                            current_user = st.session_state.get("current_user", "System")
+                            update_compliance_record(db, record.id, 1 if is_met else 0, evidence, current_user)
                             st.success("Saved!")
                             st.rerun()
 

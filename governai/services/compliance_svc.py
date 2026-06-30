@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from database.models import ComplianceRecord, AISystem
+from services.audit_svc import log_action
 
 EU_AI_ACT_CONTROLS = {
     "High": [
@@ -78,13 +79,21 @@ def generate_checklists(db: Session, system_id: str, frameworks: list = None):
     db.commit()
     return db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
 
-def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str):
+def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str, current_user: str = "System"):
     """Updates a single compliance control record."""
     record = db.query(ComplianceRecord).filter(ComplianceRecord.id == record_id).first()
     if record:
+        old_met = record.is_met
         record.is_met = is_met
         record.evidence_link = evidence_link
         db.commit()
+        
+        if old_met != is_met:
+            log_action(db, record.system_id, current_user, "COMPLIANCE_UPDATED", {
+                "framework": record.framework,
+                "control_id": record.control_id,
+                "status": "Met" if is_met else "Not Met"
+            })
     return record
 
 def get_compliance_score(db: Session, system_id: str, framework: str = None):

@@ -43,9 +43,34 @@ def generate_pdf_report(system_id: str, output_path: str):
     story.append(Paragraph(f"<b>EU AI Act Risk Tier:</b> {system.risk_tier}", styles['Normal']))
     story.append(Paragraph(f"<b>Current Status:</b> {system.compliance_status}", styles['Normal']))
     
-    score = get_compliance_score(db, system_id)
-    story.append(Paragraph(f"<b>Compliance Completeness:</b> {score}%", styles['Normal']))
+    score_eu = get_compliance_score(db, system_id, "EU AI Act")
+    score_nist = get_compliance_score(db, system_id, "NIST AI RMF")
+    story.append(Paragraph(f"<b>EU AI Act Completeness:</b> {score_eu}%", styles['Normal']))
+    story.append(Paragraph(f"<b>NIST AI RMF Completeness:</b> {score_nist}%", styles['Normal']))
     story.append(Spacer(1, 15))
+    
+    # Risk Assessment Details (if available)
+    if system.risk_assessments and system.risk_assessments[0].answers:
+        story.append(Paragraph("Risk Assessment Responses", styles['Heading2']))
+        assessment = system.risk_assessments[0]
+        story.append(Paragraph(f"<b>Assessed By:</b> {assessment.assessed_by} on {assessment.assessed_at.split('T')[0]}", styles['Normal']))
+        story.append(Spacer(1, 10))
+        
+        q_data = [["Question Key", "Answer", "Weight"]]
+        for ans in assessment.answers:
+            q_data.append([ans.question_key, ans.answer, str(ans.weight)])
+            
+        t_risk = Table(q_data, colWidths=[300, 100, 50])
+        t_risk.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#4a4e69")),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 8),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey)
+        ]))
+        story.append(t_risk)
+        story.append(Spacer(1, 15))
     
     # Data Sources
     story.append(Paragraph("Data Sources & Privacy", styles['Heading2']))
