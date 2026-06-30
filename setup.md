@@ -1,7 +1,7 @@
 # GovernAI Beginner Setup Guide
 ### Foundry Local + Qwen 3.5-2B + Kiji Privacy Proxy
 
-This guide is written for beginners. Follow the steps in order. Do not skip any section. Replace placeholders such as `<WindowsUsername>` and `<LinuxUsername>` with your own usernames.
+Replace placeholders such as `<WindowsUsername>` and `<LinuxUsername>` with your own usernames.
 
 ## Prerequisites
 
