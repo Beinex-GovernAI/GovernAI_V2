@@ -1,0 +1,18 @@
+# Core application (unpinned to match the existing project setup -- see README.md)
+streamlit
+sqlalchemy
+psycopg[binary]
+reportlab
+pandas
+python-dotenv
+
+# LLM-powered Risk Tier Suggestion
+openai>=1.40.0
+# Pinned to the 0.x "legacy" generation of the SDK on purpose: it ships the
+# lightweight `foundry_local` client (simple REST calls to the local
+# `foundry` service) used by foundry_client.py. Versions >=1.0.0 replaced
+# this with a native ctypes-based SDK that requires separately installed
+# native binaries and pulls in CUDA/GPU-targeted dependencies, which is
+# overkill for this CPU-friendly local-inference use case. Re-evaluate this
+# pin if you intentionally want to move to the new native SDK.
+foundry-local-sdk==0.5.1
