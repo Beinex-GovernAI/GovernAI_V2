@@ -110,7 +110,8 @@ header[data-testid="stHeader"] {
 h1 {
     font-size: 2.2rem !important;
     font-weight: 900 !important;
-    letter-spacing: -1px !important;
+    letter-spacing: 0.5px !important;
+    word-spacing: 4px !important;
     text-transform: uppercase !important;
     color: #FFFFFF !important;
     border-bottom: 1px solid #1A3A1A !important;
@@ -162,8 +163,8 @@ h3 {
 }
 
 [data-testid="stExpander"] {
-    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%) !important;
-    border: 1px solid #1A3A1A !important;
+    background: #0D1117 !important;
+    border: 1px solid #21262D !important;
     border-radius: 8px !important;
 }
 
@@ -544,8 +545,8 @@ hr {
 }
 
 .gov-card {
-    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%);
-    border: 1px solid #1A3A1A;
+    background: #0D1117;
+    border: 1px solid #21262D;
     border-radius: 10px;
     padding: 1.25rem;
     margin-bottom: 0.75rem;
@@ -733,4 +734,15 @@ hr {
 [data-testid="stPageLink"] strong {
     color: #FFFFFF !important;
     font-size: 0.95rem !important;
+}
+[data-testid="stFileUploader"] label {
+    padding-left: 0.5rem !important;
+    display: inline-block !important;
+}
+[data-testid="stFileUploader"] label {
+    margin-bottom: -0.5rem !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    margin-top: 0 !important;
 }

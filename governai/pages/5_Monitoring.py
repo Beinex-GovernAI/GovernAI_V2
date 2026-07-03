@@ -6,7 +6,7 @@ from services.ai_system_svc import get_systems
 from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
 from services.audit_svc import get_audit_logs
 
-st.set_page_config(page_title="Monitoring", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Monitoring", layout="wide")
 
 import streamlit as st
 import os
@@ -16,7 +16,7 @@ from services.ai_system_svc import get_systems
 from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
 from services.audit_svc import get_audit_logs
 
-st.set_page_config(page_title="Monitoring", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Monitoring", layout="wide")
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'styles.css')
@@ -88,7 +88,7 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+        uploaded_file = st.file_uploader(" Choose a CSV file", type=["csv"])
 
         if uploaded_file is not None:
             if st.button("Ingest CSV"):

@@ -4,7 +4,7 @@ from database.db import SessionLocal
 from services.ai_system_svc import get_systems, create_system
 from reports.report_gen import generate_pdf_report
 
-st.set_page_config(page_title="Inventory", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Inventory", layout="wide")
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'styles.css')
@@ -13,7 +13,7 @@ def load_css():
 
 load_css()
 
-st.title("📝 AI System Inventory")
+st.title(" AI System Inventory")
 
 db = SessionLocal()
 current_user = st.session_state.get("current_user", "Admin")
