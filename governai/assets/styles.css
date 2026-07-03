@@ -1,0 +1,736 @@
+/* GovernAI — Dark Governance Theme */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded');
+
+* {
+    font-family: 'Inter', sans-serif !important;
+}
+
+[data-testid="stAppViewContainer"] {
+    background-color: #080808;
+    color: #E6EDF3;
+    background-image: radial-gradient(circle at 0% 0%, #0A2A0A 0%, transparent 35%),
+                      radial-gradient(circle at 100% 100%, #0A2A0A 0%, transparent 35%);
+}
+
+[data-testid="stMain"] {
+    background-color: transparent;
+}
+
+[data-testid="stAppViewContainer"]::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(circle, #1A2A1A 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-testid="stAppViewContainer"]::after {
+    content: '';
+    position: fixed;
+    top: -120px;
+    right: -120px;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0D3D0D 0%, transparent 70%);
+    border: 1px solid #1A3A1A;
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-testid="stMainBlockContainer"]::before {
+    content: '';
+    position: fixed;
+    bottom: -100px;
+    left: -100px;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0D3D0D 0%, transparent 70%);
+    border: 1px solid #1A3A1A;
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-testid="stMainBlockContainer"]::after {
+    content: '';
+    position: fixed;
+    top: 50%;
+    right: -60px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0A2A0A 0%, transparent 70%);
+    border: 1px solid #1A3A1A;
+    pointer-events: none;
+    z-index: 0;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #050505 !important;
+    border-right: 1px solid #1A3A1A !important;
+}
+
+[data-testid="stSidebar"] * {
+    color: #E6EDF3 !important;
+}
+
+[data-testid="stSidebarNav"] a {
+    color: #7D9A7D !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.3px !important;
+    padding: 0.4rem 0.8rem !important;
+    border-radius: 4px !important;
+    transition: all 0.15s ease !important;
+}
+
+[data-testid="stSidebarNav"] a:hover,
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    color: #4ADE4A !important;
+    background-color: #0D2D0D !important;
+}
+
+header[data-testid="stHeader"] {
+    background-color: #050A05 !important;
+    border-bottom: 1px solid #1A3A1A !important;
+}
+
+#MainMenu { visibility: hidden; }
+[data-testid="stToolbar"] { visibility: hidden; }
+
+h1 {
+    font-size: 2.2rem !important;
+    font-weight: 900 !important;
+    letter-spacing: -1px !important;
+    text-transform: uppercase !important;
+    color: #FFFFFF !important;
+    border-bottom: 1px solid #1A3A1A !important;
+    padding-bottom: 0.75rem !important;
+    margin-bottom: 1.5rem !important;
+    line-height: 1.1 !important;
+}
+
+h2 {
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #FFFFFF !important;
+}
+
+h3 {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: #E6EDF3 !important;
+}
+
+[data-testid="metric-container"] {
+    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%) !important;
+    border: 1px solid #1A3A1A !important;
+    border-top: 2px solid #4ADE4A !important;
+    border-radius: 8px !important;
+    padding: 1.25rem !important;
+    transition: transform 0.15s ease !important;
+}
+
+[data-testid="metric-container"]:hover {
+    transform: translateY(-2px) !important;
+    border-top-color: #6EF06E !important;
+}
+
+[data-testid="metric-container"] label {
+    color: #7D9A7D !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    color: #4ADE4A !important;
+    font-size: 2.2rem !important;
+    font-weight: 900 !important;
+}
+
+[data-testid="stExpander"] {
+    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%) !important;
+    border: 1px solid #1A3A1A !important;
+    border-radius: 8px !important;
+}
+
+[data-testid="stExpander"] summary {
+    color: #E6EDF3 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.75rem 1rem !important;
+     background-color: #0D2D0D !important;
+
+}
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary * {
+    color: #E6EDF3 !important;
+}
+[data-testid="stExpander"] details[open] summary {
+    background-color: #0D2D0D !important;
+    border-bottom: 1px solid #1A3A1A !important;
+}
+[data-testid="stExpander"]:hover {
+    border-color: #4ADE4A !important;
+}
+
+/* Fix expander text visibility */
+[data-testid="stExpander"] details summary span {
+    color: #E6EDF3 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+}
+
+/* ── Expander arrow icon fix ──
+   The old rules that hid summary div:first-child / nth-child(2)
+   were hiding the wrong elements and breaking the icon font.
+   This targets ONLY the actual Material icon glyph so it renders
+   as a real arrow instead of leaking "_arrow_right" text, and
+   leaves your title text alone. */
+[data-testid="stIconMaterial"] {
+    font-family: 'Material Symbols Rounded', 'Material Symbols Outlined' !important;
+    color: #7D9A7D !important;
+}
+
+[data-testid="stButton"] button {
+    background: linear-gradient(135deg, #1A5C1A 0%, #0D3D0D 100%) !important;
+    color: #4ADE4A !important;
+    border: 1px solid #4ADE4A !important;
+    border-radius: 20px !important;
+    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: all 0.15s ease !important;
+}
+
+[data-testid="stButton"] button:hover {
+    background: linear-gradient(135deg, #4ADE4A 0%, #2AB82A 100%) !important;
+    color: #050A05 !important;
+    box-shadow: 0 0 16px rgba(74, 222, 74, 0.3) !important;
+}
+
+/* ── Form submit button (st.form_submit_button uses a different
+   testid than st.button, so it was falling through to Streamlit's
+   default white button — invisible text until hover) ── */
+[data-testid="stFormSubmitButton"] button {
+    background: linear-gradient(135deg, #1A5C1A 0%, #0D3D0D 100%) !important;
+    color: #4ADE4A !important;
+    border: 1px solid #4ADE4A !important;
+    border-radius: 20px !important;
+    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: all 0.15s ease !important;
+}
+
+[data-testid="stFormSubmitButton"] button:hover {
+    background: linear-gradient(135deg, #4ADE4A 0%, #2AB82A 100%) !important;
+    color: #050A05 !important;
+    box-shadow: 0 0 16px rgba(74, 222, 74, 0.3) !important;
+}
+
+[data-testid="stSelectbox"] > div,
+[data-testid="stTextInput"] > div > div,
+[data-testid="stTextArea"] > div > div {
+    background-color: #0D2D0D !important;
+    border: 1px solid #1A3A1A !important;
+    border-radius: 6px !important;
+    color: #E6EDF3 !important;
+}
+
+[data-testid="stSelectbox"] > div:focus-within,
+[data-testid="stTextInput"] > div > div:focus-within,
+[data-testid="stTextArea"] > div > div:focus-within {
+    border-color: #4ADE4A !important;
+    box-shadow: 0 0 0 1px #4ADE4A !important;
+}
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    color: #E6EDF3 !important;
+}
+/* ── Placeholder text fix (was near-invisible/dark) ── */
+[data-testid="stTextInput"] input::placeholder,
+[data-testid="stTextArea"] textarea::placeholder {
+    color: #7D9A7D !important;
+    opacity: 1 !important;
+}
+
+[data-testid="stDataFrame"] {
+    background-color: #0D2D0D !important;
+    border: 1px solid #1A3A1A !important;
+    border-radius: 8px !important;
+}
+
+.status-compliant {
+    display: inline-block;
+    background-color: #0D3D1A;
+    color: #4ADE4A;
+    border: 1px solid #4ADE4A;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.status-noncompliant {
+    display: inline-block;
+    background-color: #3D0D0D;
+    color: #FF5555;
+    border: 1px solid #FF5555;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.status-atrisk {
+    display: inline-block;
+    background-color: #3D2D0D;
+    color: #F0A500;
+    border: 1px solid #F0A500;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    display: inline-block;
+    background-color: #1A1F1A;
+    color: #7D9A7D;
+    border: 1px solid #7D9A7D;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tier-high {
+    display: inline-block;
+    background-color: #3D0D0D;
+    color: #FF5555;
+    border: 1px solid #FF5555;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tier-limited {
+    display: inline-block;
+    background-color: #3D2D0D;
+    color: #F0A500;
+    border: 1px solid #F0A500;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tier-minimal {
+    display: inline-block;
+    background-color: #0D3D1A;
+    color: #4ADE4A;
+    border: 1px solid #4ADE4A;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tier-pending {
+    display: inline-block;
+    background-color: #1A1F1A;
+    color: #7D9A7D;
+    border: 1px solid #7D9A7D;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.section-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #4ADE4A;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+[data-testid="stInfo"] {
+    background-color: #0D2D0D !important;
+    border-left: 3px solid #4ADE4A !important;
+    color: #E6EDF3 !important;
+    border-radius: 6px !important;
+}
+
+[data-testid="stWarning"] {
+    background-color: #2D1F0D !important;
+    border-left: 3px solid #F0A500 !important;
+    color: #E6EDF3 !important;
+    border-radius: 6px !important;
+}
+
+[data-testid="stError"] {
+    background-color: #2D0D0D !important;
+    border-left: 3px solid #FF5555 !important;
+    color: #E6EDF3 !important;
+    border-radius: 6px !important;
+}
+
+[data-testid="stSuccess"] {
+    background-color: #0D2D0D !important;
+    border-left: 3px solid #4ADE4A !important;
+    color: #E6EDF3 !important;
+    border-radius: 6px !important;
+}
+
+/* ── Progress Bar — single clean green bar ── */
+[data-testid="stProgress"] {
+    background-color: #1A3A1A !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] > div {
+    background-color: #1A3A1A !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] > div > div {
+    background: linear-gradient(90deg, #4ADE4A, #2AB82A) !important;
+    border-radius: 4px !important;
+}
+[data-testid="stProgress"] {
+    margin-top: 0.25rem;
+}
+
+[data-testid="stProgress"] > div > div {
+    background-color: #1A3A1A !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] progress::-webkit-progress-bar {
+    background-color: #1A3A1A !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] progress::-webkit-progress-value {
+    background: linear-gradient(90deg, #4ADE4A, #2AB82A) !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] progress::-moz-progress-bar {
+    background: linear-gradient(90deg, #4ADE4A, #2AB82A) !important;
+    border-radius: 4px !important;
+}
+
+/* Hide Streamlit's built-in caption text — we render our own badge instead */
+[data-testid="stProgress"] p {
+    display: none !important;
+}
+.pct-badge {
+    display: inline-block;
+    background-color: #0D3D1A;
+    color: #4ADE4A;
+    border: 1px solid #4ADE4A;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+[data-testid="stProgress"] progress {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    height: 100% !important;
+    width: 100% !important;
+    border: none !important;
+    background-color: #E6EDF3 !important;
+}
+
+[data-testid="stProgress"] progress::-webkit-progress-bar {
+    background-color: #E6EDF3 !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] progress::-webkit-progress-value {
+    background: linear-gradient(90deg, #4ADE4A, #2AB82A) !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stProgress"] progress::-moz-progress-bar {
+    background: linear-gradient(90deg, #4ADE4A, #2AB82A) !important;
+    border-radius: 4px !important;
+}
+
+[data-testid="stFileUploader"] {
+    background-color: #0D2D0D !important;
+    border: 1px dashed #4ADE4A !important;
+    border-radius: 8px !important;
+}
+
+[data-testid="stTabs"] [role="tab"] {
+    color: #7D9A7D !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    color: #4ADE4A !important;
+    border-bottom: 2px solid #4ADE4A !important;
+}
+
+[data-testid="stCheckbox"] label {
+    color: #E6EDF3 !important;
+}
+/* Radio question labels (the actual questions, not the Yes/No options) */
+[data-testid="stRadio"] > label,
+[data-testid="stRadio"] label[data-testid="stWidgetLabel"] p {
+    color: #FFFFFF !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+}
+
+/* Just in case Streamlit wraps it differently */
+[data-testid="stWidgetLabel"] p {
+    color: #FFFFFF !important;
+}
+/* Yes/No radio option text */
+[data-testid="stRadio"] label p,
+[data-testid="stRadio"] label span {
+    color: #FFFFFF !important;
+}
+hr {
+    border-color: #1A3A1A !important;
+}
+
+.gov-card {
+    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%);
+    border: 1px solid #1A3A1A;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s ease;
+}
+
+.gov-card:hover {
+    border-color: #4ADE4A;
+}
+
+.gov-card-title {
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.gov-card-sub {
+    color: #7D9A7D;
+    font-size: 0.8rem;
+}
+
+/* ── Form elements inside expanders ── */
+[data-testid="stExpander"] [data-testid="stCheckbox"] label {
+    color: #E6EDF3 !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stExpander"] [data-testid="stTextInput"] label,
+[data-testid="stExpander"] [data-testid="stSelectbox"] label {
+    color: #7D9A7D !important;
+    font-size: 0.8rem !important;
+}
+
+[data-testid="stExpander"] [data-testid="stTextInput"] input {
+    color: #E6EDF3 !important;
+    background-color: #0D2D0D !important;
+}
+
+[data-testid="stExpander"] [data-testid="stForm"] {
+    border: none !important;
+    padding: 0.5rem 0 !important;
+}
+
+[data-testid="stCheckbox"] label p {
+    color: #E6EDF3 !important;
+    font-size: 0.9rem !important;
+}
+
+[data-testid="stCheckbox"] label span {
+    color: #E6EDF3 !important;
+}
+/* Inner drag-and-drop area of the file uploader */
+[data-testid="stFileUploaderDropzone"] {
+    background-color: #0D2D0D !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"] div,
+[data-testid="stFileUploaderDropzoneInstructions"] span {
+    color: #E6EDF3 !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    color: #7D9A7D !important;
+}
+
+/* File uploader "Upload" button — default and hover */
+[data-testid="stFileUploaderDropzone"] button,
+[data-testid="baseButton-secondary"] {
+    background-color: #1A5C1A !important;
+    color: #4ADE4A !important;
+    border: 1px solid #4ADE4A !important;
+    border-radius: 20px !important;
+    font-weight: 700 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button:hover,
+[data-testid="baseButton-secondary"]:hover {
+    background: linear-gradient(135deg, #4ADE4A 0%, #2AB82A 100%) !important;
+    color: #050A05 !important;
+}
+
+[data-testid="stFileUploaderDropzone"] button span,
+[data-testid="stFileUploaderDropzone"] button p {
+    color: inherit !important;
+}
+.gov-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #0D2D0D;
+    border: 1px solid #1A3A1A;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gov-table th {
+    background: #071507;
+    color: #7D9A7D;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #1A3A1A;
+}
+
+.gov-table td {
+    color: #E6EDF3;
+    font-size: 0.85rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #1A3A1A;
+}
+
+.gov-table tr:last-child td {
+    border-bottom: none;
+}
+
+.gov-table tr:hover td {
+    background: #10230f;
+}
+/* Selectbox dropdown menu (the popup list itself) */
+[data-baseweb="popover"] [data-baseweb="menu"] {
+    background-color: #0D2D0D !important;
+    border: 1px solid #4ADE4A !important;
+}
+
+[data-baseweb="popover"] [role="option"] {
+    background-color: #0D2D0D !important;
+    color: #E6EDF3 !important;
+}
+
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] [aria-selected="true"] {
+    background-color: #1A5C1A !important;
+    color: #4ADE4A !important;
+}
+
+/* Selected value text inside the closed selectbox */
+[data-testid="stSelectbox"] [data-baseweb="select"] div {
+    color: #E6EDF3 !important;
+}
+/* Closed selectbox background — this is the white box before you click it */
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+    background-color: #0D2D0D !important;
+    border-color: #1A3A1A !important;
+}
+
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {
+    border-color: #4ADE4A !important;
+}
+
+/* Make sure the selected value text is bright, not the placeholder-grey */
+[data-testid="stSelectbox"] [data-baseweb="select"] div[title] {
+    color: #E6EDF3 !important;
+}
+
+/* Dropdown arrow icon */
+[data-testid="stSelectbox"] svg {
+    fill: #7D9A7D !important;
+}
+[data-testid="stProgress"] p {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+[data-testid="stPageLink"] {
+    background: linear-gradient(135deg, #0D2D0D 0%, #071507 100%) !important;
+    border: 1px solid #1A3A1A !important;
+    border-radius: 10px !important;
+    padding: 1rem 1.25rem !important;
+    display: block !important;
+    transition: border-color 0.15s ease !important;
+}
+
+[data-testid="stPageLink"]:hover {
+    border-color: #4ADE4A !important;
+}
+
+[data-testid="stPageLink"] p {
+    color: #E6EDF3 !important;
+    font-size: 0.85rem !important;
+    line-height: 1.5 !important;
+}
+
+[data-testid="stPageLink"] strong {
+    color: #FFFFFF !important;
+    font-size: 0.95rem !important;
+}

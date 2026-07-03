@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import pandas as pd
 from database.db import SessionLocal
 from services.ai_system_svc import get_systems
@@ -7,7 +8,49 @@ from services.audit_svc import get_audit_logs
 
 st.set_page_config(page_title="Monitoring", page_icon="📈", layout="wide")
 
-st.title("📈 System Monitoring & Alerts")
+import streamlit as st
+import os
+import pandas as pd
+from database.db import SessionLocal
+from services.ai_system_svc import get_systems
+from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
+from services.audit_svc import get_audit_logs
+
+st.set_page_config(page_title="Monitoring", page_icon="📈", layout="wide")
+
+def load_css():
+    css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'styles.css')
+    with open(css_path) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+def render_metric_table(metric_data):
+    rows_html = ""
+    for row in metric_data:
+        breached_class = "status-noncompliant" if row["Breached"] == "Yes" else "status-compliant"
+        rows_html += (
+            "<tr>"
+            f"<td>{row['Timestamp']}</td>"
+            f"<td>{row['Metric']}</td>"
+            f"<td>{row['Value']}</td>"
+            f"<td>{row['Threshold']}</td>"
+            f"<td><span class='{breached_class}'>{row['Breached']}</span></td>"
+            "</tr>"
+        )
+
+    table_html = (
+        "<table class='gov-table'>"
+        "<thead><tr>"
+        "<th>Timestamp</th><th>Metric</th><th>Value</th><th>Threshold</th><th>Breached</th>"
+        "</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        "</table>"
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
+ 
+
+load_css()
+
+st.title("System Monitoring & Alerts")
 
 db = SessionLocal()
 current_user = st.session_state.get("current_user", "Admin")
@@ -17,21 +60,33 @@ systems = get_systems(db)
 if not systems:
     st.warning("No systems found.")
 else:
+    st.markdown('<p class="section-label">Select System</p>', unsafe_allow_html=True)
     system_names = {sys.id: sys.name for sys in systems}
-    selected_sys_id = st.selectbox("Select AI System", options=list(system_names.keys()), format_func=lambda x: system_names[x])
-    
+    selected_sys_id = st.selectbox(
+        "Select AI System",
+        options=list(system_names.keys()),
+        format_func=lambda x: system_names[x],
+        label_visibility="collapsed",
+    )
+
     selected_sys = next(s for s in systems if s.id == selected_sys_id)
-    
+
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
-        st.subheader("Upload Metric Data (CSV)")
+        st.markdown('<p class="section-label">Upload Metric Data (CSV)</p>', unsafe_allow_html=True)
         st.info(
             "Upload a CSV with columns **metric_name** and **metric_value** to ingest real "
             "monitoring data. Threshold breaches will automatically trigger status updates "
             "and audit logging (the Golden Thread)."
         )
-        st.write(f"**Supported metrics & thresholds:** {DEFAULT_THRESHOLDS}")
+
+        st.markdown(f"""
+        <div class="gov-card">
+            <div class="gov-card-title" style="font-size:0.82rem;">Supported Metrics & Thresholds</div>
+            <div class="gov-card-sub" style="margin-top:0.4rem;">{DEFAULT_THRESHOLDS}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
         uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
 
@@ -39,23 +94,23 @@ else:
             if st.button("Ingest CSV"):
                 try:
                     result = ingest_metrics_from_csv(db, selected_sys_id, uploaded_file, current_user)
-                    
+
                     st.success(
                         f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
                     )
-                    
+
                     if result["errors"]:
                         st.warning("Some rows had issues:")
                         for err in result["errors"]:
                             st.write(f"- {err}")
-                    
+
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))
                 except Exception as e:
                     st.error(f"Failed to process CSV: {e}")
 
-        st.subheader("Metric History")
+        st.markdown('<p class="section-label">Metric History</p>', unsafe_allow_html=True)
         metrics = get_metrics(db, selected_sys_id)
         if metrics:
             metric_data = []
@@ -67,30 +122,35 @@ else:
                     "Threshold": m.threshold_value,
                     "Breached": "Yes" if m.is_breached else "No"
                 })
-            df = pd.DataFrame(metric_data)
-            st.dataframe(df, width='stretch')
+            render_metric_table(metric_data)
         else:
-            st.write("No metrics recorded yet.")
+            st.markdown('<p style="color:#7D9A7D;font-size:0.85rem;">No metrics recorded yet.</p>', unsafe_allow_html=True)
 
     with col2:
-        st.subheader("Live Status")
-        if selected_sys.compliance_status == "Compliant":
-            st.success("Status: Compliant")
-        elif selected_sys.compliance_status == "Non-Compliant":
-            st.error("Status: Non-Compliant")
-        elif selected_sys.compliance_status == "At Risk":
-            st.warning("Status: At Risk")
-        else:
-            st.info("Status: Pending")
+        st.markdown('<p class="section-label">Live Status</p>', unsafe_allow_html=True)
 
-        st.subheader("Audit Trail")
+        status = selected_sys.compliance_status or "Pending"
+        status_class = {
+            "Compliant": "status-compliant",
+            "Non-Compliant": "status-noncompliant",
+            "At Risk": "status-atrisk",
+            "Pending": "status-pending"
+        }.get(status, "status-pending")
+
+        st.markdown(f"""
+        <div class="gov-card">
+            <span class="{status_class}">{status}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<p class="section-label">Audit Trail</p>', unsafe_allow_html=True)
         logs = get_audit_logs(db, selected_sys_id)
         if logs:
             for log in logs[:10]:
-                with st.expander(f"**{log.action}** - {log.timestamp.split('T')[0]}"):
-                    st.write(f"**User:** {log.user}")
+                with st.expander(f"{log.action} — {log.timestamp.split('T')[0]}"):
+                    st.markdown(f"<p style='color:#E6EDF3;font-size:0.85rem;'><strong>User:</strong> {log.user}</p>", unsafe_allow_html=True)
                     st.json(log.details)
         else:
-            st.write("No audit logs.")
+            st.markdown('<p style="color:#7D9A7D;font-size:0.85rem;">No audit logs.</p>', unsafe_allow_html=True)
 
 db.close()
