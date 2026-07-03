@@ -39,12 +39,24 @@ scope, the Kiji proxy itself is intentionally not implemented here.
 from __future__ import annotations
 
 from typing import Callable, List
+import os
+import requests
 
 # A preprocessor takes the raw description text and returns a (possibly
 # transformed) version of it. Each one runs in order before the LLM call.
 TextPreprocessor = Callable[[str], str]
 
-DEFAULT_PREPROCESSORS: List[TextPreprocessor] = []
+KIJI_PROXY_URL = os.environ.get("KIJI_PROXY_URL", "http://localhost:8080/api/pii/check")
+
+def mask_pii_with_kiji(text: str) -> str:
+    """Sends text through the local Kiji Privacy Proxy and returns the
+    PII-masked version."""
+    response = requests.post(KIJI_PROXY_URL, json={"message": text}, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    return data.get("masked_message", text)
+
+DEFAULT_PREPROCESSORS: List[TextPreprocessor] = [mask_pii_with_kiji]
 
 
 def run_pipeline(text: str, preprocessors: List[TextPreprocessor] | None = None) -> str:
