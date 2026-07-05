@@ -28,17 +28,22 @@ monitoring operational safety in real-time.
 st.markdown('<p class="section-label">Navigate the Platform</p>', unsafe_allow_html=True)
 
 nav_items = [
-    ("pages/1_Dashboard.py", "Dashboard", "High-level portfolio view."),
-    ("pages/2_Inventory.py", "Inventory", "Central registry of all AI systems."),
-    ("pages/3_Risk_Setup.py", "Risk Setup", "Questionnaire for EU AI Act risk tiers."),
-    ("pages/4_Compliance.py", "Compliance", "Checklists and framework mappings."),
-    ("pages/5_Monitoring.py", "Monitoring", "Real-time metrics and alerts."),
+    ("pages/1_Dashboard.py", "Dashboard", "High-level portfolio view.", "📊"),
+    ("pages/2_Inventory.py", "Inventory", "Central registry of all AI systems.", "📂"),
+    ("pages/3_Risk_Setup.py", "Risk Setup", "Questionnaire for EU AI Act risk.", "⚖️"),
+    ("pages/4_Compliance.py", "Compliance", "Checklists and framework mappings.", "✅"),
+    ("pages/5_Monitoring.py", "Monitoring", "Real-time metrics and alerts.", "📈"),
 ]
 
-cols = st.columns(len(nav_items))
-for col, (page_path, name, desc) in zip(cols, nav_items):
+# Create a clean grid layout (3 columns on the first row, 2 on the second)
+cols1 = st.columns(3)
+cols2 = st.columns(3)
+
+for i, (page_path, name, desc, icon) in enumerate(nav_items):
+    # Place first 3 items in the first row, next 2 in the second row
+    col = cols1[i] if i < 3 else cols2[i - 3]
     with col:
-        st.page_link(page_path, label=f"**{name}**\n\n{desc}")
+        st.page_link(page_path, label=f"**{name}**\n\n{desc}", icon=icon, use_container_width=True)
 
 # Sidebar Role Selector
 st.sidebar.markdown('<p class="section-label" style="margin-top:0;">Simulation Identity</p>', unsafe_allow_html=True)
