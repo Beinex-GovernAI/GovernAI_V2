@@ -99,13 +99,14 @@
     background-color: #0D2D0D !important;
 }
 
-header[data-testid="stHeader"] {
+header[data-testid="stHeader"],
+header[data-testid="stAppHeader"] {
     background-color: #050A05 !important;
     border-bottom: 1px solid #1A3A1A !important;
 }
 
-#MainMenu { visibility: hidden; }
-[data-testid="stToolbar"] { visibility: hidden; }
+/* #MainMenu { visibility: hidden; } */
+/* [data-testid="stToolbar"] { visibility: hidden; } */
 
 h1 {
     font-size: 2.2rem !important;
@@ -745,4 +746,26 @@ hr {
 
 [data-testid="stFileUploaderDropzoneInstructions"] {
     margin-top: 0 !important;
+}
+
+/* ── Sidebar Toggle Visibility Fix ── */
+header [data-testid="collapsedControl"],
+header [data-testid="stSidebarCollapsedControl"],
+header [data-testid="baseButton-header"] {
+    z-index: 999999 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+header svg {
+    fill: #4ADE4A !important;
+    color: #4ADE4A !important;
+}
+
+[data-testid="stSidebarCollapseButton"] {
+    color: #7D9A7D !important;
+}
+
+[data-testid="stSidebarCollapseButton"]:hover {
+    color: #4ADE4A !important;
 }
