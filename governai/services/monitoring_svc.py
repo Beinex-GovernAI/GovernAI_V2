@@ -1,126 +1,91 @@
-import streamlit as st
-import pandas as pd
-from database.db import SessionLocal
-from services.ai_system_svc import get_systems
-from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
-from services.audit_svc import get_audit_logs
+from sqlalchemy.orm import Session
+from database.models import MonitoringMetric, AISystem
+from services.ai_system_svc import update_status
+from services.audit_svc import log_action
+import pandas as pd 
 
-st.set_page_config(page_title="Monitoring", page_icon="", layout="wide")
+DEFAULT_THRESHOLDS = {
+    "Drift": 0.15,
+    "Bias": 0.1,
+    "Hallucination": 0.05,
+    "Cost": 1000.0
+}
 
-def load_css():
-    import os
-    css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'styles.css')
-    with open(css_path) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-load_css()
-
-st.title("System Monitoring & Alerts")
-
-db = SessionLocal()
-current_user = st.session_state.get("current_user", "Admin")
-
-systems = get_systems(db)
-
-if not systems:
-    st.warning("No systems found.")
-else:
-    system_names = {sys.id: sys.name for sys in systems}
-    selected_sys_id = st.selectbox(
-        "Select System",
-        options=list(system_names.keys()),
-        format_func=lambda x: system_names[x]
+def ingest_metric(db: Session, system_id: str, metric_name: str, metric_value: float, current_user: str):
+    """Ingests a new metric reading, checks against thresholds, and updates state if breached."""
+    threshold = DEFAULT_THRESHOLDS.get(metric_name, 0.0)
+    is_breached = 1 if metric_value > threshold else 0
+    
+    # 1. Save Metric
+    new_metric = MonitoringMetric(
+        system_id=system_id,
+        metric_name=metric_name,
+        metric_value=metric_value,
+        threshold_value=threshold,
+        is_breached=is_breached
     )
+    db.add(new_metric)
+    db.commit()
+    db.refresh(new_metric)
+    
+    # 2. Trigger Cross-Wiring (The Golden Thread)
+    if is_breached:
+        system = db.query(AISystem).filter(AISystem.id == system_id).first()
+        
+        # Only log and update if we aren't already non-compliant
+        if system and system.compliance_status != "Non-Compliant":
+            reason = f"{metric_name} exceeded threshold: {metric_value} > {threshold}"
+            
+            # Log specific breach action
+            log_action(db, system_id, "System Engine", "METRIC_BREACH", {
+                "metric_name": metric_name,
+                "metric_value": metric_value,
+                "threshold": threshold,
+                "triggering_user": current_user
+            })
+            
+            # Update status
+            update_status(db, system_id, "Non-Compliant", "System Engine", reason=reason)
+            
+    return new_metric
 
-    selected_sys = next(s for s in systems if s.id == selected_sys_id)
+def ingest_metrics_from_csv(db: Session, system_id: str, csv_file, current_user: str):
+    """
+    Parses an uploaded CSV of metric readings and ingests each row using ingest_metric(),
+    so threshold breach logic and audit logging still apply automatically per row.
+    
+    Expected CSV columns: metric_name, metric_value
+    """
+    try:
+        df = pd.read_csv(csv_file, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        csv_file.seek(0)  # reset file pointer before retrying
+        df = pd.read_csv(csv_file, encoding="utf-16")
 
-    col1, col2 = st.columns([2, 1])
+    required_columns = {"metric_name", "metric_value"}
+    if not required_columns.issubset(df.columns):
+        raise ValueError(f"CSV must contain columns: {required_columns}. Found: {list(df.columns)}")
 
-    with col1:
-        st.markdown('<p class="section-label">Upload Metric Data (CSV)</p>', unsafe_allow_html=True)
-        st.info(
-            "Upload a CSV with columns **metric_name** and **metric_value** to ingest real "
-            "monitoring data. Threshold breaches will automatically trigger status updates "
-            "and audit logging (the Golden Thread)."
-        )
+    results = []
+    errors = []
 
-        st.markdown(f"""
-        <div style='background:#0D2D0D;border:1px solid #1A3A1A;border-radius:6px;
-        padding:0.75rem 1rem;margin-bottom:1rem'>
-            <p style='color:#7D9A7D;font-size:0.72rem;text-transform:uppercase;
-            letter-spacing:0.5px;margin:0 0 0.25rem 0'>Supported Metrics & Thresholds</p>
-            <p style='color:#E6EDF3;font-size:0.85rem;margin:0'>{DEFAULT_THRESHOLDS}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    for index, row in df.iterrows():
+        metric_name = str(row["metric_name"]).strip()
+        try:
+            metric_value = float(row["metric_value"])
+        except (ValueError, TypeError):
+            errors.append(f"Row {index + 2}: invalid metric_value '{row['metric_value']}'")
+            continue
 
-        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
+        if metric_name not in DEFAULT_THRESHOLDS:
+            errors.append(f"Row {index + 2}: unknown metric_name '{metric_name}', skipped")
+            continue
 
-        if uploaded_file is not None:
-            if st.button("Ingest CSV"):
-                try:
-                    result = ingest_metrics_from_csv(
-                        db, selected_sys_id, uploaded_file, current_user
-                    )
-                    # Store ingested metric IDs in session state for "Recent" tab
-                    st.session_state[f"recent_ids_{selected_sys_id}"] = [
-                        m.id for m in result["ingested"]
-                    ]
-                    st.success(
-                        f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
-                    )
-                    if result["errors"]:
-                        st.warning("Some rows had issues:")
-                        for err in result["errors"]:
-                            st.write(f"- {err}")
-                    st.rerun()
-                except ValueError as e:
-                    st.error(str(e))
-                except Exception as e:
-                    st.error(f"Failed to process CSV: {e}")
+        new_metric = ingest_metric(db, system_id, metric_name, metric_value, current_user)
+        results.append(new_metric)
 
-# Tabs for Recent vs History
-st.markdown('<p class="section-label">Metric Data</p>', unsafe_allow_html=True)
-tab1, tab2 = st.tabs(["Recent Upload", "Full History"])
+    return {"ingested": results, "errors": errors, "total_rows": len(df)}
 
-all_metrics = get_metrics(db, selected_sys_id)
-
-# "Recent" = the exact rows from the last CSV you just ingested this session.
-# Everything else (including older uploads) goes to Full History.
-recent_ids = st.session_state.get(f"recent_ids_{selected_sys_id}", [])
-
-with tab1:
-    recent_metrics = [m for m in all_metrics if m.id in recent_ids]
-    if recent_metrics:
-        recent_data = [{
-            "Timestamp": m.timestamp,
-            "Metric": m.metric_name,
-            "Value": m.metric_value,
-            "Threshold": m.threshold_value,
-            "Breached": "YES" if m.is_breached else "NO"
-        } for m in recent_metrics]
-        df = pd.DataFrame(recent_data)
-        st.dataframe(df, use_container_width=True)
-        breached = [m for m in recent_metrics if m.is_breached]
-        if breached:
-            st.error(f"{len(breached)} metric(s) breached threshold in this upload.")
-        else:
-            st.success("No threshold breaches in this upload.")
-    else:
-        st.info("No metrics ingested in the last 10 minutes.")
-
-with tab2:
-    history_metrics = [m for m in all_metrics if m.id not in recent_ids]
-    if history_metrics:
-        history_data = [{
-            "Timestamp": m.timestamp,
-            "Metric": m.metric_name,
-            "Value": m.metric_value,
-            "Threshold": m.threshold_value,
-            "Breached": "YES" if m.is_breached else "NO"
-        } for m in history_metrics]
-        df_history = pd.DataFrame(history_data)
-        st.dataframe(df_history, use_container_width=True)
-    else:
-        st.info("No historical data yet.")
-
-db.close()
+def get_metrics(db: Session, system_id: str, limit: int = 50):
+    """Retrieves recent metrics for a system."""
+    return db.query(MonitoringMetric).filter(MonitoringMetric.system_id == system_id).order_by(MonitoringMetric.timestamp.desc()).limit(limit).all()
