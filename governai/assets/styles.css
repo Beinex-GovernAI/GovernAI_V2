@@ -558,6 +558,11 @@ hr {
     border-color: #4ADE4A;
 }
 
+/* Top-right delete icon button on inventory cards */
+.icon-btn-spacer {
+    height: 0.9rem;
+}
+
 .gov-card-title {
     color: #FFFFFF;
     font-weight: 700;

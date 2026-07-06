@@ -61,3 +61,57 @@ def add_data_source(db: Session, system_id: str, source_data: dict, current_user
 
     log_action(db, system_id, current_user, "DATA_SOURCE_ADDED", {"source_name": new_source.source_name})
     return new_source
+
+
+def update_system(db: Session, system_id: str, updated_data: dict, current_user: str):
+    """Updates fields on an existing AI system and logs the update."""
+    system = db.query(AISystem).filter(AISystem.id == system_id).first()
+    if not system:
+        return None
+
+    changed = {}
+    # Only update fields that are present in updated_data
+    for field in [
+        "name",
+        "owner",
+        "business_purpose",
+        "model_vendor",
+        "model_type",
+        "model_source",
+        "agentic_trace_required",
+    ]:
+        if field in updated_data:
+            new_val = updated_data.get(field)
+            old_val = getattr(system, field)
+            if new_val != old_val:
+                setattr(system, field, new_val)
+                changed[field] = {"old": old_val, "new": new_val}
+
+    if changed:
+        db.commit()
+        log_action(db, system_id, current_user, "SYSTEM_UPDATED", {"changes": changed})
+
+    return system
+
+
+def delete_system(db: Session, system_id: str, current_user: str):
+    """Deletes an AI system and logs the deletion.
+
+    IMPORTANT: the audit log entry is written BEFORE the system row is
+    deleted. audit_logs.system_id still references the (about-to-be-deleted)
+    system at insert time, which satisfies the foreign key. Once the system
+    is deleted, the DB sets system_id to NULL on this and all prior logs for
+    that system (see ondelete="SET NULL" on AuditLog.system_id) instead of
+    deleting them, so the compliance/audit trail survives.
+    """
+    system = db.query(AISystem).filter(AISystem.id == system_id).first()
+    if not system:
+        return None
+
+    system_name = system.name
+    log_action(db, system_id, current_user, "SYSTEM_DELETED", {"name": system_name})
+
+    db.delete(system)
+    db.commit()
+
+    return True

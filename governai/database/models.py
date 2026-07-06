@@ -27,7 +27,10 @@ class AISystem(Base):
     risk_assessments = relationship("RiskAssessment", back_populates="system", cascade="all, delete-orphan")
     compliance_records = relationship("ComplianceRecord", back_populates="system", cascade="all, delete-orphan")
     monitoring_metrics = relationship("MonitoringMetric", back_populates="system", cascade="all, delete-orphan")
-    audit_logs = relationship("AuditLog", back_populates="system", cascade="all, delete-orphan")
+    # Note: audit_logs intentionally has NO delete cascade — deleting a system
+    # must not erase its compliance/audit history. See AuditLog.system_id below,
+    # which is set to NULL (not deleted) via ondelete="SET NULL".
+    audit_logs = relationship("AuditLog", back_populates="system")
 
 class DataSource(Base):
     __tablename__ = "data_sources"
@@ -95,7 +98,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    system_id = Column(String(36), ForeignKey("ai_systems.id"))
+    system_id = Column(String(36), ForeignKey("ai_systems.id", ondelete="SET NULL"))
     user = Column(String)  # Who made the change
     action = Column(String, nullable=False)  # (e.g., STATUS_CHANGE, METRIC_BREACH, SYSTEM_CREATED)
     details = Column(String)  # JSON string containing old_value, new_value, or breach context
