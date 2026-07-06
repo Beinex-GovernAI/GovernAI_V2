@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from database.db import SessionLocal
+from database.models import RiskAssessment
 from services.ai_system_svc import get_systems
 from services.audit_svc import log_action
 from services.risk_svc import RISK_QUESTIONS, assess_risk
@@ -30,12 +31,29 @@ else:
     st.markdown('<p class="section-label">Select System</p>', unsafe_allow_html=True)
 
     system_names = {sys.id: sys.name for sys in systems}
+    options_list = list(system_names.keys())
+
+    if "global_sys_id" in st.session_state and st.session_state.global_sys_id not in options_list:
+        del st.session_state["global_sys_id"]
+
+    def update_global_sys():
+        st.session_state.global_sys_id = st.session_state.risk_setup_sys_selector
+
+    default_index = 0
+    if "global_sys_id" in st.session_state:
+        default_index = options_list.index(st.session_state.global_sys_id)
+
     selected_sys_id = st.selectbox(
         "Select AI System",
-        options=list(system_names.keys()),
+        options=options_list,
+        index=default_index,
         format_func=lambda x: system_names[x],
         label_visibility="collapsed",
+        key="risk_setup_sys_selector",
+        on_change=update_global_sys
     )
+    if "global_sys_id" not in st.session_state:
+        st.session_state.global_sys_id = selected_sys_id
 
     selected_sys = next(s for s in systems if s.id == selected_sys_id)
 
@@ -137,9 +155,23 @@ else:
             unsafe_allow_html=True,
         )
 
+        latest_assessment = db.query(RiskAssessment).filter(RiskAssessment.system_id == selected_sys_id).order_by(RiskAssessment.assessed_at.desc()).first()
+        previous_answers = {}
+        if latest_assessment:
+            for ans in latest_assessment.answers:
+                previous_answers[ans.question_key] = ans.answer
+
         answers = {}
         for q in RISK_QUESTIONS:
-            answers[q["key"]] = st.radio(q["text"], q["options"], key=q["key"])
+            prev_ans = previous_answers.get(q["key"])
+            try:
+                default_index = q["options"].index(prev_ans) if prev_ans else 0
+            except ValueError:
+                default_index = 0
+                
+            # Make the widget key unique per system so session state doesn't overlap
+            widget_key = f"{selected_sys_id}_{q['key']}"
+            answers[q["key"]] = st.radio(q["text"], q["options"], index=default_index, key=widget_key)
 
         submitted = st.form_submit_button("Submit Assessment")
 

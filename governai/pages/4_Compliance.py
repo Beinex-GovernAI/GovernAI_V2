@@ -31,11 +31,28 @@ if not systems:
     st.warning("No systems found.")
 else:
     system_names = {sys.id: sys.name for sys in systems}
+    options_list = list(system_names.keys())
+
+    if "global_sys_id" in st.session_state and st.session_state.global_sys_id not in options_list:
+        del st.session_state["global_sys_id"]
+
+    def update_global_sys():
+        st.session_state.global_sys_id = st.session_state.compliance_sys_selector
+
+    default_index = 0
+    if "global_sys_id" in st.session_state:
+        default_index = options_list.index(st.session_state.global_sys_id)
+
     selected_sys_id = st.selectbox(
         "Select AI System",
-        options=list(system_names.keys()),
+        options=options_list,
+        index=default_index,
         format_func=lambda x: system_names[x],
+        key="compliance_sys_selector",
+        on_change=update_global_sys
     )
+    if "global_sys_id" not in st.session_state:
+        st.session_state.global_sys_id = selected_sys_id
 
     selected_sys = next(s for s in systems if s.id == selected_sys_id)
     tier = selected_sys.risk_tier or "Pending"
