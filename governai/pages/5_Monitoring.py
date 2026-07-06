@@ -8,20 +8,12 @@ from services.audit_svc import get_audit_logs
 
 st.set_page_config(page_title="Monitoring", layout="wide")
 
-import streamlit as st
-import os
-import pandas as pd
-from database.db import SessionLocal
-from services.ai_system_svc import get_systems
-from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
-from services.audit_svc import get_audit_logs
-
-st.set_page_config(page_title="Monitoring", layout="wide")
 
 def load_css():
     css_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'styles.css')
     with open(css_path) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
 
 def render_metric_table(metric_data):
     rows_html = ""
@@ -46,7 +38,17 @@ def render_metric_table(metric_data):
         "</table>"
     )
     st.markdown(table_html, unsafe_allow_html=True)
- 
+
+
+def build_metric_data(metric_list):
+    return [{
+        "Timestamp": m.timestamp,
+        "Metric": m.metric_name,
+        "Value": m.metric_value,
+        "Threshold": m.threshold_value,
+        "Breached": "Yes" if m.is_breached else "No"
+    } for m in metric_list]
+
 
 load_css()
 
@@ -88,12 +90,20 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        uploaded_file = st.file_uploader(" Choose a CSV file", type=["csv"])
+        uploaded_file = st.file_uploader(" Choose a CSV file", type=["csv"], key=f"csv_uploader_{selected_sys_id}")
 
         if uploaded_file is not None:
             if st.button("Ingest CSV"):
                 try:
                     result = ingest_metrics_from_csv(db, selected_sys_id, uploaded_file, current_user)
+
+                    # Track which rows came from this specific upload so the
+                    # "Recent Upload" tab shows only this batch. This gets
+                    # overwritten on every new ingest, so the previous batch
+                    # automatically falls into "Full History".
+                    st.session_state[f"recent_ids_{selected_sys_id}"] = [
+                        m.id for m in result["ingested"]
+                    ]
 
                     st.success(
                         f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
@@ -110,21 +120,36 @@ else:
                 except Exception as e:
                     st.error(f"Failed to process CSV: {e}")
 
-        st.markdown('<p class="section-label">Metric History</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-label">Metric Data</p>', unsafe_allow_html=True)
+        tab1, tab2 = st.tabs(["Recent Upload", "Full History"])
+
         metrics = get_metrics(db, selected_sys_id)
-        if metrics:
-            metric_data = []
-            for m in metrics:
-                metric_data.append({
-                    "Timestamp": m.timestamp,
-                    "Metric": m.metric_name,
-                    "Value": m.metric_value,
-                    "Threshold": m.threshold_value,
-                    "Breached": "Yes" if m.is_breached else "No"
-                })
-            render_metric_table(metric_data)
-        else:
-            st.markdown('<p style="color:#7D9A7D;font-size:0.85rem;">No metrics recorded yet.</p>', unsafe_allow_html=True)
+        recent_ids = st.session_state.get(f"recent_ids_{selected_sys_id}", [])
+
+        with tab1:
+            recent_metrics = [m for m in metrics if m.id in recent_ids]
+            if recent_metrics:
+                render_metric_table(build_metric_data(recent_metrics))
+                breached = [m for m in recent_metrics if m.is_breached]
+                if breached:
+                    st.error(f"{len(breached)} metric(s) breached threshold in this upload.")
+                else:
+                    st.success("No threshold breaches in this upload.")
+            else:
+                st.markdown(
+                    '<p style="color:#7D9A7D;font-size:0.85rem;">No recent upload yet. Ingest a CSV to see it here.</p>',
+                    unsafe_allow_html=True
+                )
+
+        with tab2:
+            history_metrics = [m for m in metrics if m.id not in recent_ids]
+            if history_metrics:
+                render_metric_table(build_metric_data(history_metrics))
+            else:
+                st.markdown(
+                    '<p style="color:#7D9A7D;font-size:0.85rem;">No historical data yet.</p>',
+                    unsafe_allow_html=True
+                )
 
     with col2:
         st.markdown('<p class="section-label">Live Status</p>', unsafe_allow_html=True)

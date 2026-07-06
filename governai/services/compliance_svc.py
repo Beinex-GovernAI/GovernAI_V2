@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from database.models import ComplianceRecord, AISystem
 from services.audit_svc import log_action
+from database.models import ComplianceRecord, AISystem
 
 EU_AI_ACT_CONTROLS = {
     "High": [
@@ -79,21 +80,39 @@ def generate_checklists(db: Session, system_id: str, frameworks: list = None):
     db.commit()
     return db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
 
-def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str, current_user: str = "System"):
-    """Updates a single compliance control record."""
+def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str):
+    """Updates a single compliance control record and auto-updates system status."""
+    from services.ai_system_svc import update_status
+    from services.audit_svc import log_action
+
     record = db.query(ComplianceRecord).filter(ComplianceRecord.id == record_id).first()
     if record:
-        old_met = record.is_met
         record.is_met = is_met
         record.evidence_link = evidence_link
         db.commit()
-        
-        if old_met != is_met:
-            log_action(db, record.system_id, current_user, "COMPLIANCE_UPDATED", {
-                "framework": record.framework,
-                "control_id": record.control_id,
-                "status": "Met" if is_met else "Not Met"
-            })
+
+        # Check if all controls are now met for this system
+        all_records = db.query(ComplianceRecord).filter(
+            ComplianceRecord.system_id == record.system_id
+        ).all()
+
+        if all_records:
+            all_met = all(r.is_met for r in all_records)
+            any_unmet = any(not r.is_met for r in all_records)
+
+            system = db.query(AISystem).filter(
+                AISystem.id == record.system_id
+            ).first()
+
+           # Only auto-update if system isn't already Non-Compliant from a metric breach
+            if system:
+                if all_met:
+                    update_status(db, record.system_id, "Compliant", "System Engine",
+                                 reason="All compliance controls marked as met")
+                elif any_unmet and system.compliance_status != "Non-Compliant":
+                    update_status(db, record.system_id, "At Risk", "System Engine",
+                                 reason="Some compliance controls remain unmet")
+
     return record
 
 def get_compliance_score(db: Session, system_id: str, framework: str = None):
