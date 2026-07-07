@@ -36,8 +36,8 @@ from .exceptions import FoundryConnectionError, FoundryModelError
 
 load_dotenv()
 
-DEFAULT_MODEL_ALIAS = os.environ.get("FOUNDRY_MODEL_ALIAS", "phi-3.5-mini")
-DEFAULT_FALLBACK_BASE_URL = os.environ.get("FOUNDRY_BASE_URL", "http://127.0.0.1:62181/v1")
+DEFAULT_MODEL_ALIAS = os.environ.get("FOUNDRY_MODEL_ALIAS", "phi-4-mini")
+DEFAULT_FALLBACK_BASE_URL = os.environ.get("FOUNDRY_BASE_URL", "http://127.0.0.1:53962/v1")
 DEFAULT_API_KEY = os.environ.get("FOUNDRY_API_KEY", "not-required-for-local-use")
 DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("FOUNDRY_TIMEOUT_SECONDS", "60"))
 DEFAULT_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", "600"))
