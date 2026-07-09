@@ -128,6 +128,16 @@ else:
                             for factor in suggestion.key_factors:
                                 st.markdown(f"<div style='color:#E6EDF3;font-size:0.85rem;padding:0.15rem 0;'>• {factor}</div>", unsafe_allow_html=True)
 
+                        if suggestion.masked_text and suggestion.masked_text != description:
+                            st.markdown(f"""
+                            <div class="gov-card" style="margin-top:0.75rem; border: 1px dashed #4ADE4A;">
+                                <div style="margin-bottom:0.5rem;">
+                                    <span style="color:#4ADE4A;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">🔐 Data Privacy Filter Active&nbsp;&nbsp;</span>
+                                </div>
+                                <p style="color:#E6EDF3;font-size:0.85rem;margin:0.4rem 0;">Sent to LLM as: <em>"{suggestion.masked_text}"</em></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
                         st.caption(
                             f"Model: `{suggestion.model_used}` · "
                             f"Endpoint discovery: `{suggestion.discovery_mode}`"

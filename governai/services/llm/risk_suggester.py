@@ -34,6 +34,7 @@ class RiskSuggestion:
     model_used: str = ""
     discovery_mode: str = ""      # "sdk-auto-discovered" or "static-env-fallback"
     raw_response: str = ""
+    masked_text: str = ""
 
     def as_dict(self) -> dict:
         return {
@@ -93,4 +94,5 @@ def suggest_risk_tier(
         model_used=active_client.model_id,
         discovery_mode=active_client.connection_info.discovery_mode,
         raw_response=raw_response,
+        masked_text=text,
     )
