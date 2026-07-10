@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from database.models import ComplianceRecord, AISystem
 from services.audit_svc import log_action
-from database.models import ComplianceRecord, AISystem
 
 EU_AI_ACT_CONTROLS = {
     "High": [
@@ -18,8 +17,6 @@ EU_AI_ACT_CONTROLS = {
     ]
 }
 
-# NIST AI Risk Management Framework controls, mapped to the four core functions:
-# GOVERN, MAP, MEASURE, MANAGE
 NIST_AI_RMF_CONTROLS = {
     "High": [
         {"id": "NIST-GOVERN-1.1", "desc": "Govern: Establish accountability structures and policies for AI risk management."},
@@ -35,7 +32,6 @@ NIST_AI_RMF_CONTROLS = {
     ]
 }
 
-# Central registry of frameworks -> their control sets
 FRAMEWORK_CONTROLS = {
     "EU AI Act": EU_AI_ACT_CONTROLS,
     "NIST AI RMF": NIST_AI_RMF_CONTROLS
@@ -56,10 +52,8 @@ def generate_checklists(db: Session, system_id: str, frameworks: list = None):
         return []
 
     if frameworks is None:
-        frameworks = list(FRAMEWORK_CONTROLS.keys())  # generate for both by default
+        frameworks = list(FRAMEWORK_CONTROLS.keys())
 
-    # Check what's already been generated, keyed by (framework, control_id) so the
-    # two frameworks never collide even if control IDs happened to overlap
     existing = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
     existing_keys = {(r.framework, r.control_id) for r in existing}
 
@@ -80,10 +74,9 @@ def generate_checklists(db: Session, system_id: str, frameworks: list = None):
     db.commit()
     return db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
 
-def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str):
+def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_link: str, updated_by: str = "System"):
     """Updates a single compliance control record and auto-updates system status."""
     from services.ai_system_svc import update_status
-    from services.audit_svc import log_action
 
     record = db.query(ComplianceRecord).filter(ComplianceRecord.id == record_id).first()
     if record:
@@ -91,7 +84,19 @@ def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_
         record.evidence_link = evidence_link
         db.commit()
 
-        # Check if all controls are now met for this system
+        log_action(
+            db,
+            system_id=record.system_id,
+            user=updated_by,
+            action="Compliance control updated",
+            details={
+                "control_id": record.control_id,
+                "framework": record.framework,
+                "is_met": bool(is_met),
+                "evidence_link": evidence_link or None
+            }
+        )
+
         all_records = db.query(ComplianceRecord).filter(
             ComplianceRecord.system_id == record.system_id
         ).all()
@@ -104,7 +109,6 @@ def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_
                 AISystem.id == record.system_id
             ).first()
 
-           # Only auto-update if system isn't already Non-Compliant from a metric breach
             if system:
                 if all_met:
                     update_status(db, record.system_id, "Compliant", "System Engine",
