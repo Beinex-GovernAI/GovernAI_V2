@@ -12,7 +12,7 @@ server_process = subprocess.Popen(
 
 try:
     # Wait for the server to boot up
-    time.sleep(3)
+    time.sleep(10)
 
     print("Testing /health endpoint...")
     resp = requests.get("http://localhost:8000/health")
@@ -60,7 +60,7 @@ try:
         result = telemetry_resp.json()
         assert result["compliance_status"] == "Non-Compliant", "Expected status to flip to Non-Compliant after breach"
         assert result["metrics_ingested"][0]["is_breached"] is True, "Expected metric to be flagged as breached"
-        print("\n✅ Golden Thread test passed: breach correctly flipped status to Non-Compliant.")
+        print("\n[PASS] Golden Thread test passed: breach correctly flipped status to Non-Compliant.")
     else:
         print("\nSkipping telemetry test since registration failed.")
 
