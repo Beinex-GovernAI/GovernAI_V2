@@ -19,6 +19,8 @@ class AISystem(Base):
     agentic_trace_required = Column(String)  # (Yes, No)
     risk_tier = Column(String, default="Pending")  # (Prohibited, High, Limited, Minimal, Pending)
     compliance_status = Column(String, default="Pending")  # (Compliant, At Risk, Non-Compliant, Pending)
+    drift_threshold = Column(Float, nullable=True)
+    bias_threshold = Column(Float, nullable=True)
     created_at = Column(String, default=utcnow)
     updated_at = Column(String, default=utcnow, onupdate=utcnow)
 

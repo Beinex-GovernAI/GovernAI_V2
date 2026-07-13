@@ -13,7 +13,15 @@ DEFAULT_THRESHOLDS = {
 
 def ingest_metric(db: Session, system_id: str, metric_name: str, metric_value: float, current_user: str):
     """Ingests a new metric reading, checks against thresholds, and updates state if breached."""
+    system = db.query(AISystem).filter(AISystem.id == system_id).first()
+    
     threshold = DEFAULT_THRESHOLDS.get(metric_name, 0.0)
+    if system:
+        if metric_name == "Drift" and system.drift_threshold is not None:
+            threshold = system.drift_threshold
+        elif metric_name == "Bias" and system.bias_threshold is not None:
+            threshold = system.bias_threshold
+
     is_breached = 1 if metric_value > threshold else 0
     
     # 1. Save Metric
