@@ -16,3 +16,8 @@ openai>=1.40.0
 # overkill for this CPU-friendly local-inference use case. Re-evaluate this
 # pin if you intentionally want to move to the new native SDK.
 foundry-local-sdk==0.5.1
+
+# Integration API
+fastapi
+uvicorn
+pydantic
