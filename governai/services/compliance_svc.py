@@ -110,7 +110,7 @@ def update_compliance_record(db: Session, record_id: str, is_met: int, evidence_
             ).first()
 
             if system:
-                if all_met:
+                if all_met and system.compliance_status != "Non-Compliant":
                     update_status(db, record.system_id, "Compliant", "System Engine",
                                  reason="All compliance controls marked as met")
                 elif any_unmet and system.compliance_status != "Non-Compliant":
