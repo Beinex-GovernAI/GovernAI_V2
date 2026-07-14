@@ -9,17 +9,26 @@ It wires together, in order:
         -> prompt_templates (parses the structured response)
 
 into a single `suggest_risk_tier()` call returning a `RiskSuggestion`.
+
+If Foundry Local is unreachable or fails to run the model (e.g. an
+Out-Of-Memory error on lower-RAM machines), this falls back to OpenAI's
+API automatically, using the same prompt/messages and the same response
+parsing, so callers get an identical RiskSuggestion shape either way.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from .exceptions import LLMRiskAssessmentError
+from .exceptions import FoundryConnectionError, FoundryModelError, LLMRiskAssessmentError
 from .foundry_client import FoundryClient, get_default_client
 from .pii_pipeline import TextPreprocessor, run_pipeline
 from .prompt_templates import build_messages, parse_response
+
+OPENAI_FALLBACK_MODEL = "gpt-4o-mini"
+OPENAI_FALLBACK_TIMEOUT_SECONDS = 15
 
 
 @dataclass
@@ -32,7 +41,7 @@ class RiskSuggestion:
     explanation: str
     key_factors: List[str] = field(default_factory=list)
     model_used: str = ""
-    discovery_mode: str = ""      # "sdk-auto-discovered" or "static-env-fallback"
+    discovery_mode: str = ""      # "sdk-auto-discovered", "static-env-fallback", or "openai-fallback"
     raw_response: str = ""
     masked_text: str = ""
 
@@ -47,6 +56,40 @@ class RiskSuggestion:
         }
 
 
+def _openai_fallback_completion(messages: list) -> str:
+    """Sends the same chat messages to OpenAI's API when Foundry Local is
+    unavailable or fails to run the model. Returns raw text in the same
+    format `parse_response()` already expects from Foundry.
+
+    Raises:
+        LLMRiskAssessmentError: if the OpenAI call itself fails (e.g. no
+            API key configured, network error, rate limit, or timeout).
+    """
+    try:
+        from openai import OpenAI
+    except ImportError as e:
+        raise LLMRiskAssessmentError(
+            "openai package is not installed; cannot use fallback."
+        ) from e
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise LLMRiskAssessmentError(
+            "OPENAI_API_KEY is not set; cannot use OpenAI fallback."
+        )
+
+    try:
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model=OPENAI_FALLBACK_MODEL,
+            messages=messages,
+            timeout=OPENAI_FALLBACK_TIMEOUT_SECONDS,  # don't let a hung call block the registration endpoint
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        raise LLMRiskAssessmentError(f"OpenAI fallback call failed: {e}") from e
+
+
 def suggest_risk_tier(
     system_description: str,
     *,
@@ -55,6 +98,9 @@ def suggest_risk_tier(
 ) -> RiskSuggestion:
     """Suggests an EU AI Act risk tier for a plain-language AI system
     description, using the configured local LLM via Foundry Local.
+
+    Falls back to OpenAI automatically if Foundry Local cannot be reached
+    or fails to run the model (e.g. Out-Of-Memory on the local machine).
 
     Args:
         system_description: Plain-language description of the AI system.
@@ -67,12 +113,15 @@ def suggest_risk_tier(
 
     Returns:
         A `RiskSuggestion` with the suggested tier, explanation, and the
-        contributing factors the model identified.
+        contributing factors the model identified. Callers should check
+        `discovery_mode == "openai-fallback"` if they want to record that
+        this particular suggestion came from the cloud fallback rather
+        than the local model (e.g. for an audit log entry).
 
     Raises:
         ValueError: if `system_description` is empty/blank.
-        FoundryConnectionError: Foundry Local's service could not be reached.
-        FoundryModelError: the service responded but inference failed.
+        LLMRiskAssessmentError: if both Foundry Local and the OpenAI
+            fallback fail.
         LLMResponseParseError: the model's response couldn't be parsed into
             a valid structured suggestion.
     """
@@ -80,10 +129,20 @@ def suggest_risk_tier(
         raise ValueError("system_description must be a non-empty string.")
 
     text = run_pipeline(system_description, preprocessors)
-
-    active_client = client or get_default_client()
     messages = build_messages(text)
-    raw_response = active_client.chat_completion(messages)
+
+    try:
+        active_client = client or get_default_client()
+        raw_response = active_client.chat_completion(messages)
+        model_used = active_client.model_id
+        discovery_mode = active_client.connection_info.discovery_mode
+    except (FoundryConnectionError, FoundryModelError):
+        # Foundry Local is unreachable or failed to run the model
+        # (e.g. OOM) — fall back to OpenAI so registration doesn't fail.
+        raw_response = _openai_fallback_completion(messages)
+        model_used = OPENAI_FALLBACK_MODEL
+        discovery_mode = "openai-fallback"
+
     parsed = parse_response(raw_response)
 
     return RiskSuggestion(
@@ -91,8 +150,8 @@ def suggest_risk_tier(
         internal_tier=parsed["internal_tier"],
         explanation=parsed["explanation"],
         key_factors=parsed["key_factors"],
-        model_used=active_client.model_id,
-        discovery_mode=active_client.connection_info.discovery_mode,
+        model_used=model_used,
+        discovery_mode=discovery_mode,
         raw_response=raw_response,
         masked_text=text,
     )

@@ -1,19 +1,25 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import List, Optional
+from pydantic import BaseModel
+
 
 class SystemRegistrationRequest(BaseModel):
-    name: str = Field(..., description="Name of the AI system")
-    owner: str = Field(..., description="Owner or team responsible")
-    business_purpose: str = Field(..., description="Description of what the AI does")
-    model_type: Optional[str] = Field("LLM", description="Type of the model (e.g. LLM, Computer Vision)")
-    model_vendor: Optional[str] = Field("Custom", description="Vendor of the model")
-    model_source: Optional[str] = Field("Internal", description="Open Source or Proprietary")
-    drift_threshold: Optional[float] = Field(0.1, description="Threshold for drift metric")
-    bias_threshold: Optional[float] = Field(0.1, description="Threshold for bias metric")
+    """Payload for POST /api/v1/systems/register"""
+    name: str
+    owner: str
+    business_purpose: str
+    model_type: str
+    model_vendor: Optional[str] = None
+    model_source: Optional[str] = None
+    drift_threshold: Optional[float] = None
+    bias_threshold: Optional[float] = None
 
-class TelemetryMetric(BaseModel):
-    name: str = Field(..., description="Metric name (e.g., Drift, Bias)")
-    value: float = Field(..., description="Current value of the metric")
+
+class MetricPayload(BaseModel):
+    """A single telemetry metric reading."""
+    name: str
+    value: float
+
 
 class TelemetryPayload(BaseModel):
-    metrics: List[TelemetryMetric] = Field(..., description="List of metrics to report")
+    """Payload for POST /api/v1/systems/{system_id}/telemetry"""
+    metrics: List[MetricPayload]
