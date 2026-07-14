@@ -59,6 +59,15 @@ def register_system(request: SystemRegistrationRequest, db: Session = Depends(ge
     # 3. Log the system creation
     log_action(db, new_system.id, "API_INTEGRATION", "SYSTEM_CREATED", 
                {"risk_tier": new_system.risk_tier, "model_used": suggestion.model_used})
+
+    # 3b. If the risk tier came from the OpenAI fallback (Foundry Local was
+    # unreachable or OOM'd) rather than the local model, record that
+    # separately — auditors/Mebin can then see exactly which systems were
+    # assessed locally vs. via the cloud fallback.
+    if suggestion.discovery_mode == "openai-fallback":
+        log_action(db, new_system.id, "API_INTEGRATION", "FALLBACK_TO_OPENAI",
+                   {"reason": "Foundry Local unreachable or OOM",
+                    "model_used": suggestion.model_used})
                
     return {
         "status": "success",
