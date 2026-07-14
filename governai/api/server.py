@@ -10,6 +10,7 @@ from services.llm.risk_suggester import suggest_risk_tier
 from services.llm.exceptions import FoundryConnectionError, FoundryModelError, LLMResponseParseError
 from api.schemas import SystemRegistrationRequest, TelemetryPayload
 from services.monitoring_svc import ingest_metric
+from services.compliance_svc import generate_checklists
 
 app = FastAPI(
     title="GovernAI Integration API",
@@ -55,6 +56,9 @@ def register_system(request: SystemRegistrationRequest, db: Session = Depends(ge
     db.add(new_system)
     db.commit()
     db.refresh(new_system)
+    
+    # 2.5. Generate compliance checklists based on risk tier
+    generate_checklists(db, new_system.id)
     
     # 3. Log the system creation
     log_action(db, new_system.id, "API_INTEGRATION", "SYSTEM_CREATED", 
