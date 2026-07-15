@@ -12,7 +12,7 @@ def load_css():
 
 load_css()
 
-st.title("Portfolio Dashboard")
+st.title("Dashboard")
 
 db = SessionLocal()
 systems = get_systems(db)

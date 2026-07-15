@@ -28,11 +28,11 @@ monitoring operational safety in real-time.
 st.markdown('<p class="section-label">Navigate the Platform</p>', unsafe_allow_html=True)
 
 nav_items = [
-    ("pages/1_Dashboard.py", "Dashboard", "High-level portfolio view.", "📊"),
-    ("pages/2_Inventory.py", "Inventory", "Central registry of all AI systems.", "📂"),
-    ("pages/3_Risk_Setup.py", "Risk Setup", "Questionnaire for EU AI Act risk.", "⚖️"),
-    ("pages/4_Compliance.py", "Compliance", "Checklists and framework mappings.", "✅"),
-    ("pages/5_Monitoring.py", "Monitoring", "Real-time metrics and alerts.", "📈"),
+    ("pages/1_Dashboard.py", "Dashboard", "High-level portfolio view.", ":material/dashboard:"),
+    ("pages/2_Inventory.py", "Inventory", "Central registry of all AI systems.", ":material/inventory_2:"),
+    ("pages/3_Risk_Setup.py", "Risk Setup", "Questionnaire for EU AI Act risk.", ":material/balance:"),
+    ("pages/4_Compliance.py", "Compliance", "Checklists and framework mappings.", ":material/verified:"),
+    ("pages/5_Monitoring.py", "Monitoring", "Real-time metrics and alerts.", ":material/monitoring:"),
 ]
 
 # Create a clean grid layout (3 columns on the first row, 2 on the second)

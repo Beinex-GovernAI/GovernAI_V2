@@ -59,7 +59,7 @@ To enable automatic PII masking before sending data to the LLM, you must set up 
 ### 6. Run the Streamlit Application
 Run the following command from the project root:
 ```bash
-streamlit run governai/app.py
+streamlit run governai/Home.py
 ```
 This will start a local server and open the app in your default browser at `http://localhost:8501`.
 
@@ -69,7 +69,7 @@ This will start a local server and open the app in your default browser at `http
 
 ```text
 governai/
-├── app.py                 # Main Streamlit entry point (Navigation & Identity Selector)
+├── Home.py                 # Main Streamlit entry point (Navigation & Identity Selector)
 ├── database/
 │   ├── db.py              # Database connection and session setup
 │   ├── models.py          # SQLAlchemy ORM models

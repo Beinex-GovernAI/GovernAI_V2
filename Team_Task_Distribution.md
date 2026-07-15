@@ -43,7 +43,7 @@ DATABASE_URL=postgresql+psycopg://postgres.mbnogucwazwgadsbcmvx:Unemployment%402
 
 ### 4. Launch the App
 ```bash
-streamlit run governai/app.py
+streamlit run governai/Home.py
 ```
 This will open the app automatically in your browser at `http://localhost:8501`.
 
