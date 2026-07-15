@@ -196,7 +196,7 @@ cd <GovernAI Project Folder>
 Run:
 
 ```powershell
-streamlit run app.py
+streamlit run governai/Home.py
 ```
 
 Do **NOT** run Streamlit from Ubuntu unless you have installed Python packages there.
