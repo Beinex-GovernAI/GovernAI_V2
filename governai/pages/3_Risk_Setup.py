@@ -79,7 +79,7 @@ else:
     """, unsafe_allow_html=True)
 
     # LLM-assisted suggestion
-    with st.expander("AI-Assisted Tier Suggestion (Beta)", expanded=False):
+    with st.expander("AI-Assisted Tier Suggestion", expanded=False):
         st.caption(
             "Describe the system in plain language and a local LLM (via Foundry Local) "
             "will suggest a likely EU AI Act tier with an explanation. This is advisory "
