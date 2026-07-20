@@ -805,33 +805,34 @@ def _build_data_section(system, styles):
 # ─────────────────────────────────────────────────────────────
 #  SECTION 5 – COMPLIANCE CONTROLS
 # ─────────────────────────────────────────────────────────────
-def _build_compliance_section(system, score_eu, score_nist, styles):
+def _build_compliance_section(system, scores_dict, styles):
     story = []
     story.append(_section_header("5. Compliance Control Verification", styles))
     story.append(Paragraph(
-        "Controls are mapped to two frameworks: the EU AI Act and the NIST AI Risk Management Framework (RMF). "
+        "Controls are mapped to applicable frameworks. "
         "Each control is verified as Met or Outstanding with supporting evidence links where available.",
         styles["body"]
     ))
     story.append(_sp(SP_AFTER_BODY))
 
-    # Inline score bars
-    score_tbl = Table(
-        [
-            [_score_row("EU AI Act",  score_eu,   styles)],
-            [_sp(4)],
-            [_score_row("NIST AI RMF", score_nist, styles)],
-        ],
-        colWidths=[USABLE_W],
-    )
-    score_tbl.setStyle(TableStyle([
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-    ]))
-    story.append(score_tbl)
-    story.append(_sp(8))
+    # Inline score bars dynamically based on scores_dict
+    score_rows = []
+    for fw_name, fw_score in scores_dict.items():
+        score_rows.append([_score_row(fw_name, fw_score, styles)])
+        score_rows.append([_sp(4)])
+        
+    if score_rows:
+        # Remove the last spacer
+        score_rows.pop()
+        score_tbl = Table(score_rows, colWidths=[USABLE_W])
+        score_tbl.setStyle(TableStyle([
+            ("TOPPADDING",    (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ]))
+        story.append(score_tbl)
+        story.append(_sp(8))
 
     if system.compliance_records:
         by_fw = {}
@@ -1078,6 +1079,13 @@ def generate_pdf_report(system_id: str, output_path: str):
 
     score_eu   = get_compliance_score(db, system_id, "EU AI Act")
     score_nist = get_compliance_score(db, system_id, "NIST AI RMF")
+    
+    scores_dict = {}
+    if system.compliance_records:
+        fw_set = set(r.framework for r in system.compliance_records)
+        for fw in fw_set:
+            scores_dict[fw] = get_compliance_score(db, system_id, fw)
+            
     report_id  = str(uuid.uuid4())
 
     styles = _build_styles()
@@ -1104,7 +1112,7 @@ def generate_pdf_report(system_id: str, output_path: str):
     story.extend(_build_system_overview(system, styles))
     story.extend(_build_risk_section(system, styles))
     story.extend(_build_data_section(system, styles))
-    story.extend(_build_compliance_section(system, score_eu, score_nist, styles))
+    story.extend(_build_compliance_section(system, scores_dict, styles))
     story.extend(_build_monitoring_section(system, styles))
     story.extend(_build_audit_section(system, styles))
     story.extend(_build_disclaimer(styles))

@@ -8,9 +8,10 @@ from database.models import AISystem
 from services.audit_svc import log_action
 from services.llm.risk_suggester import suggest_risk_tier
 from services.llm.exceptions import FoundryConnectionError, FoundryModelError, LLMResponseParseError
-from api.schemas import SystemRegistrationRequest, TelemetryPayload
+from api.schemas import SystemRegistrationRequest, TelemetryPayload, ScannerPayload
 from services.monitoring_svc import ingest_metric
-from services.compliance_svc import generate_checklists
+from services.compliance_svc import generate_checklists, auto_populate_compliance
+from services.analytics_svc import calculate_drift, calculate_bias
 
 app = FastAPI(
     title="GovernAI Integration API",
@@ -107,4 +108,53 @@ def ingest_telemetry(system_id: str, payload: TelemetryPayload, db: Session = De
         "system_id": system.id,
         "compliance_status": system.compliance_status,
         "metrics_ingested": ingested,
+    }
+
+@app.post("/api/v1/scanner/intake")
+def scanner_intake(payload: ScannerPayload, db: Session = Depends(get_db)):
+    # 1. Lookup or create system
+    system = db.query(AISystem).filter(AISystem.name == payload.system_metadata.name).first()
+    
+    if not system:
+        try:
+            suggestion = suggest_risk_tier(payload.system_metadata.business_purpose)
+        except Exception:
+            # Fallback if LLM fails
+            suggestion = type("obj", (object,), {"internal_tier": "Pending", "model_used": "Fallback"})
+            
+        system = AISystem(
+            name=payload.system_metadata.name,
+            owner=payload.system_metadata.owner,
+            business_purpose=payload.system_metadata.business_purpose,
+            model_type=payload.system_metadata.model_type,
+            model_vendor=payload.system_metadata.model_vendor,
+            model_source=payload.system_metadata.model_source,
+            risk_tier=suggestion.internal_tier,
+            drift_threshold=0.15,
+            bias_threshold=0.10
+        )
+        db.add(system)
+        db.commit()
+        db.refresh(system)
+        
+        generate_checklists(db, system.id)
+        log_action(db, system.id, "API_INTEGRATION", "SYSTEM_AUTO_REGISTERED", {"risk_tier": system.risk_tier})
+        
+    # 2. Process Raw Predictions (Analytics)
+    if payload.raw_prediction:
+        drift_val = calculate_drift(payload.raw_prediction)
+        bias_val = calculate_bias(payload.raw_prediction)
+        
+        ingest_metric(db, system.id, "Drift", drift_val, current_user="scanner_integration")
+        ingest_metric(db, system.id, "Bias", bias_val, current_user="scanner_integration")
+        
+    # 3. Process Compliance Evidence
+    if payload.compliance_evidence:
+        auto_populate_compliance(db, system.id, payload.compliance_evidence, "scanner_integration")
+        
+    db.refresh(system)
+    return {
+        "status": "success",
+        "system_id": system.id,
+        "compliance_status": system.compliance_status
     }

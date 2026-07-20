@@ -32,9 +32,39 @@ NIST_AI_RMF_CONTROLS = {
     ]
 }
 
+UAE_CHARTER_CONTROLS = {
+    "High": [
+        {"id": "UAE-AI-1.1", "desc": "Fairness and Non-Discrimination: Ensure unbiased decision-making."},
+        {"id": "UAE-AI-2.1", "desc": "Privacy and Security: Implement robust data protection measures."},
+        {"id": "UAE-AI-3.1", "desc": "Accountability: Establish clear lines of responsibility for AI outcomes."}
+    ],
+    "Limited": [
+        {"id": "UAE-AI-4.1", "desc": "Transparency: Disclose AI system operations to affected users."}
+    ],
+    "Minimal": [
+        {"id": "UAE-AI-5.1", "desc": "Safety and Reliability: Ensure baseline system stability."}
+    ]
+}
+
+SDAIA_CONTROLS = {
+    "High": [
+        {"id": "SDAIA-1.1", "desc": "Fairness: Implement mechanisms to prevent algorithmic bias."},
+        {"id": "SDAIA-2.1", "desc": "Privacy & Security: Adhere to KSA data protection regulations."},
+        {"id": "SDAIA-3.1", "desc": "Human Centric: Ensure AI respects human rights and social values."}
+    ],
+    "Limited": [
+        {"id": "SDAIA-4.1", "desc": "Transparency & Explainability: Provide understandable system outputs."}
+    ],
+    "Minimal": [
+        {"id": "SDAIA-5.1", "desc": "Accountability: Maintain standard logs of AI operations."}
+    ]
+}
+
 FRAMEWORK_CONTROLS = {
     "EU AI Act": EU_AI_ACT_CONTROLS,
-    "NIST AI RMF": NIST_AI_RMF_CONTROLS
+    "NIST AI RMF": NIST_AI_RMF_CONTROLS,
+    "UAE Charter for AI Ethics": UAE_CHARTER_CONTROLS,
+    "SDAIA AI Ethics Principles": SDAIA_CONTROLS
 }
 
 def generate_checklists(db: Session, system_id: str, frameworks: list = None):
@@ -135,3 +165,29 @@ def get_compliance_score(db: Session, system_id: str, framework: str = None):
         return 0
     met_count = sum(1 for r in records if r.is_met)
     return int((met_count / len(records)) * 100)
+
+def auto_populate_compliance(db: Session, system_id: str, evidence: dict, current_user: str):
+    """
+    Auto-populates compliance checklist based on incoming evidence dictionary.
+    """
+    records = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
+    
+    for record in records:
+        met = False
+        link = ""
+        
+        # Simple heuristic mapping for the demo
+        if "documentation_url" in evidence and ("Document" in record.control_description or "inventory" in record.control_description.lower()):
+            met = True
+            link = evidence["documentation_url"]
+            
+        if evidence.get("human_in_loop") and "Human" in record.control_description:
+            met = True
+            link = "Auto-detected: human_in_loop=True"
+            
+        if evidence.get("privacy_filters") and ("Privacy" in record.control_description or "data protection" in record.control_description):
+            met = True
+            link = "Auto-detected: privacy_filters=True"
+            
+        if met and not record.is_met:
+            update_compliance_record(db, record.id, 1, link, updated_by=current_user)
