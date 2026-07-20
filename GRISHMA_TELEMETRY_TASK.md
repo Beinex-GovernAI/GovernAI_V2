@@ -1,35 +1,94 @@
-# Telemetry & Golden Thread Integration Task
+# GovernAI — Project Update & Task Handover
 
-Hello! You are assisting Grishma with her tasks for the GovernAI project. Your goal is to implement the real-time telemetry webhook and the "Golden Thread" compliance logic. 
+This file documents everything completed after the first Mebin demo and what still needs to be done.
 
-## Context
-GovernAI is an AI governance platform. We just added a FastAPI integration layer (found in `governai/api/`) alongside the main Streamlit application. 
+---
 
-Abhay is currently working on the system registration endpoint (`POST /api/v1/systems/register`). 
-Your task is to implement the telemetry endpoint: `POST /api/v1/systems/{system_id}/telemetry`
+## ✅ Work Completed (Post-Demo Session)
 
-## Database Schema & Pydantic
-We use SQLAlchemy for the database (see `governai/database/models.py`). 
-We use Pydantic for the FastAPI request bodies (see `governai/api/schemas.py`). 
+### 1. Expanded Regional Compliance Frameworks
+**What we did:** Added native support for the **UAE Charter for AI Ethics** and **SDAIA AI Ethics Principles (Saudi Arabia)** into the core compliance engine (`compliance_svc.py`).
 
-## Your Objectives
+**Impact:** The platform is no longer limited to just the EU AI Act and NIST. System scorecards and the generated PDF Audit Reports now dynamically include compliance checklists and scores for these Middle Eastern frameworks. The `report_gen.py` PDF generator was updated to dynamically render all frameworks present for a given system, rather than hardcoding only EU AI Act and NIST.
 
-### 1. Update Registration Schema (Telemetry Thresholds)
-In `governai/api/schemas.py`, `SystemRegistrationRequest` already includes `drift_threshold` and `bias_threshold`. Ensure that the `TelemetryPayload` and `TelemetryMetric` schemas are fully set up to accept incoming arrays of metrics (e.g. `[{"name": "Drift", "value": 0.15}]`).
+---
 
-### 2. Implement the Telemetry Endpoint
-In `governai/api/server.py`, add the `POST /api/v1/systems/{system_id}/telemetry` route.
+### 2. Built the "Plug-and-Play" Intake API
+**What we did:** Developed a brand-new, agnostic API endpoint (`POST /api/v1/scanner/intake`) in `governai/api/server.py`.
 
-When this endpoint is hit by an external AI system, it must:
-1. Fetch the `AISystem` from the database using the `system_id`.
-2. Save each incoming metric to the `monitoring_metrics` table (`governai/database/models.py`).
-3. **The Golden Thread Logic**: Compare the incoming metric's `value` against the threshold saved in the `AISystem` profile (e.g., if it's a Drift metric, compare it against the system's `drift_threshold`, though you may need to add these threshold columns to the `AISystem` model if they don't exist yet, or store them in a configuration JSON field!). 
-4. If a threshold is breached, the endpoint must automatically:
-   - Change the `AISystem.compliance_status` to `"At Risk"`.
-   - Write an immutable record to the `audit_logs` table with `action="METRIC_BREACH"`.
+**Impact:** External AI apps can simply fire a JSON payload to this endpoint, and GovernAI will automatically:
+- Register the system (if new) and assign it a risk tier via the LLM.
+- Generate compliance checklists for all frameworks.
+- Ingest raw prediction data for analytics.
+- Apply compliance evidence from the payload.
 
-## Branching Strategy
-1. Create a new branch: `git checkout -b grishma/telemetry-engine`
-2. Implement your changes.
-3. Test by running the FastAPI server locally (`uvicorn governai.api.server:app --reload`).
-4. Commit and push your branch to GitHub.
+No manual data entry from the user is required.
+
+---
+
+### 3. Automated Internal Telemetry & Analytics
+**What we did:** Created `governai/services/analytics_svc.py`.
+
+**Impact:** Instead of relying on external apps to compute drift and bias themselves, GovernAI now does this internally. The intake API accepts "raw predictions" (the input text, output text, and confidence score from any AI model). GovernAI then automatically calculates statistical proxies for Drift and Bias in the background and logs them to the monitoring dashboard.
+
+---
+
+### 4. Smart Auto-Compliance Checking
+**What we did:** Added an `auto_populate_compliance()` function to `compliance_svc.py`.
+
+**Impact:** When an AI app connects to the Intake API, it can pass evidence (e.g., a documentation URL, or a flag saying privacy filters are active). GovernAI reads this and instantly checks off the corresponding regulatory controls (like EU-ART-11 documentation controls) as "Met", significantly reducing manual compliance work.
+
+---
+
+### 5. Created a Real "Demo AI System" — HR Resume Screener
+**What we did:** Built `resume_screener_app.py` — a fully functional standalone Streamlit web application for an HR recruiter persona.
+
+**Impact:** This gives a realistic visual demo for Mebin. The flow is:
+1. HR recruiter uploads a PDF/TXT resume.
+2. The app passes text through the **Kiji Privacy Proxy** (PII masking) if it is running.
+3. The (PII-safe) text is evaluated by GPT-4o-mini (or a local Foundry model) and returns a decision: *Shortlisted / Rejected* with a match score and justification.
+4. In the background, the app **silently sends telemetry** to the GovernAI Intake API — no manual action required.
+5. GovernAI's dashboard is updated automatically with the risk tier, drift/bias metrics, and compliance evidence.
+
+**How to run it:**
+```bash
+# From the project root (g:\BEINEX.AI\GovernAI):
+streamlit run resume_screener_app.py --server.port 8502
+```
+
+---
+
+## 🔲 Work Still To Be Done
+
+### High Priority
+- [ ] **Live/Periodic Scanning** — Right now telemetry is only sent when the screener app manually fires a request. Mebin wanted *periodic automatic scanning* even when no one is actively using the demo app. A background scheduler (e.g., APScheduler) inside the screener app that pushes a telemetry heartbeat every N minutes would solve this.
+- [ ] **Codebase Scanner** — Mebin mentioned "scan their codebase and verify by a verifier". This would be a module that scans an AI project's Python files (looking for model type, hyperparameters, data sources) and auto-populates the GovernAI system record without any user input.
+
+### Medium Priority
+- [ ] **Drift/Bias over Batches** — The current `analytics_svc.py` uses simple single-inference proxies. For a production-grade demo, the bias/drift calculation should accumulate across a batch of predictions and compute statistically meaningful scores.
+- [ ] **Screener App Improvements** — Add job profile selection (e.g., AI Research Scientist, Frontend Dev) back to the simplified UI as a lightweight dropdown, so the demo better illustrates role-specific AI governance.
+
+### Low Priority
+- [ ] **Kiji Setup Documentation** — Document exact startup steps for the demo machine so Kiji PII masking works reliably during the Mebin demo (see `KIJI_PROXY_IMPLEMENTATION_GUIDE.md`).
+- [ ] **FastAPI Server startup script** — There is no `start.sh` / `start.ps1` that launches both the Streamlit app and the FastAPI server together. A simple script would make demos smoother.
+
+---
+
+## 🖥️ How to Run the Full Demo
+
+Open **3 terminals** from `g:\BEINEX.AI\GovernAI\`:
+
+| Terminal | Command |
+|---|---|
+| 1. GovernAI Dashboard | `streamlit run governai/Home.py` |
+| 2. FastAPI Intake API | `cd governai && uvicorn api.server:app --reload --port 8000` |
+| 3. HR Resume Screener | `streamlit run resume_screener_app.py --server.port 8502` |
+
+Then in a WSL terminal (if Kiji is set up):
+```bash
+cd ~/kiji-proxy && kiji-proxy
+```
+
+---
+
+*Last updated: 2026-07-20*

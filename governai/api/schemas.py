@@ -41,5 +41,5 @@ class SystemMetadataPayload(BaseModel):
 class ScannerPayload(BaseModel):
     """Payload for POST /api/v1/scanner/intake"""
     system_metadata: SystemMetadataPayload
-    compliance_evidence: Optional[Dict[str, str]] = None
-    raw_prediction: Optional[RawPredictionPayload] = None
+    compliance_evidence: Optional[Dict[str, Any]] = None
+    raw_prediction: Optional[RawPredictionPayload] = None
