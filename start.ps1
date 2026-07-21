@@ -1,12 +1,13 @@
-﻿# GovernAI - App Stack Startup Script (PowerShell)
+# GovernAI - App Stack Startup Script (PowerShell)
 # Launches FastAPI Intake API, GovernAI Dashboard, and HR Resume Screener.
 # Kiji Privacy Proxy is NOT started here - run it separately from WSL:
 #   wsl kiji-proxy
 
 $ErrorActionPreference = "Stop"
 
-$ProjectRoot = "C:\Users\georg\GovernAI-\governnew"
+$ProjectRoot = $PSScriptRoot
 $LogDir = Join-Path $ProjectRoot "logs"
+
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
