@@ -33,6 +33,7 @@ class AISystem(Base):
     # must not erase its compliance/audit history. See AuditLog.system_id below,
     # which is set to NULL (not deleted) via ondelete="SET NULL".
     audit_logs = relationship("AuditLog", back_populates="system")
+    raw_predictions = relationship("RawPrediction", back_populates="system", cascade="all, delete-orphan")
 
 class DataSource(Base):
     __tablename__ = "data_sources"
@@ -120,3 +121,16 @@ class AgentActionTrace(Base):
     decision_rationale = Column(String)
 
     audit_log = relationship("AuditLog", back_populates="agent_traces")
+
+class RawPrediction(Base):
+    __tablename__ = "raw_predictions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    system_id = Column(String(36), ForeignKey("ai_systems.id"))
+    input_text = Column(String)
+    output_text = Column(String)
+    confidence_score = Column(Float, nullable=True)
+    sensitive_flag = Column(Integer, default=0)  # 0 or 1 — mentions a sensitive-topic keyword
+    created_at = Column(String, default=utcnow)
+
+    system = relationship("AISystem", back_populates="raw_predictions")

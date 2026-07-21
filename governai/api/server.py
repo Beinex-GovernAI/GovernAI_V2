@@ -5,13 +5,14 @@ import os
 
 from database.db import get_db
 from database.models import AISystem
+from database.models import utcnow  
 from services.audit_svc import log_action
 from services.llm.risk_suggester import suggest_risk_tier
 from services.llm.exceptions import FoundryConnectionError, FoundryModelError, LLMResponseParseError
 from api.schemas import SystemRegistrationRequest, TelemetryPayload, ScannerPayload
 from services.monitoring_svc import ingest_metric
 from services.compliance_svc import generate_checklists, auto_populate_compliance
-from services.analytics_svc import calculate_drift, calculate_bias
+from services.analytics_svc import save_raw_prediction, calculate_batch_drift, calculate_batch_bias
 
 app = FastAPI(
     title="GovernAI Integration API",
@@ -140,14 +141,14 @@ def scanner_intake(payload: ScannerPayload, db: Session = Depends(get_db)):
         generate_checklists(db, system.id)
         log_action(db, system.id, "API_INTEGRATION", "SYSTEM_AUTO_REGISTERED", {"risk_tier": system.risk_tier})
         
-    # 2. Process Raw Predictions (Analytics)
+   # 2. Process Raw Predictions (Analytics) — now batch-based over the last N
     if payload.raw_prediction:
-        drift_val = calculate_drift(payload.raw_prediction)
-        bias_val = calculate_bias(payload.raw_prediction)
-        
+        save_raw_prediction(db, system.id, payload.raw_prediction)
+        drift_val = calculate_batch_drift(db, system.id)
+        bias_val = calculate_batch_bias(db, system.id)
+
         ingest_metric(db, system.id, "Drift", drift_val, current_user="scanner_integration")
-        ingest_metric(db, system.id, "Bias", bias_val, current_user="scanner_integration")
-        
+        ingest_metric(db, system.id, "Bias", bias_val, current_user="scanner_integration") 
     # 3. Process Compliance Evidence
     if payload.compliance_evidence:
         auto_populate_compliance(db, system.id, payload.compliance_evidence, "scanner_integration")
@@ -157,4 +158,26 @@ def scanner_intake(payload: ScannerPayload, db: Session = Depends(get_db)):
         "status": "success",
         "system_id": system.id,
         "compliance_status": system.compliance_status
+    }
+@app.post("/api/v1/systems/{system_id}/heartbeat")
+def system_heartbeat(system_id: str, db: Session = Depends(get_db)):
+    """
+    Lightweight liveness ping. Updates AISystem.updated_at only -- does NOT
+    run compliance checks, does NOT log drift/bias metrics, does NOT write
+    an audit log entry. Purpose is purely to show a system is still being
+    monitored between real evaluations, without polluting compliance or
+    monitoring data with fake events.
+    """
+    system = db.query(AISystem).filter(AISystem.id == system_id).first()
+    if not system:
+        raise HTTPException(status_code=404, detail=f"AI system {system_id} not found")
+
+    system.updated_at = utcnow()
+    db.commit()
+    db.refresh(system)
+
+    return {
+        "system_id": system.id,
+        "status": "alive",
+        "last_seen": system.updated_at
     }
