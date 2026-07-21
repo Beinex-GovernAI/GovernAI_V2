@@ -221,8 +221,9 @@ if uploaded_file:
                 }
             }
             try:
-                gov_resp = requests.post(GOVERNAI_INTAKE_URL, json=payload, timeout=5)
+                gov_resp = requests.post(GOVERNAI_INTAKE_URL, json=payload, timeout=30)
                 if gov_resp.status_code == 200:
+
                     data = gov_resp.json()
                     st.success(f"🛡️ GovernAI logged this evaluation. System compliance status: **{data.get('compliance_status')}**")
                 else:
