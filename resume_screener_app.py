@@ -5,6 +5,7 @@ import requests
 import json
 import time
 import atexit
+import base64
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # Path setup so we can import from governai
@@ -15,24 +16,14 @@ load_dotenv()
 
 GOVERNAI_BASE_URL = os.environ.get("GOVERNAI_BASE_URL", "http://localhost:8000")
 GOVERNAI_INTAKE_URL = os.environ.get("GOVERNAI_INTAKE_URL", f"{GOVERNAI_BASE_URL}/api/v1/scanner/intake")
-KIJI_PROXY_URL = os.environ.get("KIJI_PROXY_URL", "http://localhost:8080/api/pii/check")
 HEARTBEAT_INTERVAL_MINUTES = int(os.environ.get("GOVERNAI_HEARTBEAT_MINUTES", "5"))
 
 st.set_page_config(page_title="HR Resume Screener AI", page_icon="📄", layout="centered")
 
 st.title("📄 HR Resume Screener AI")
-st.caption("Upload a candidate's resume and let the AI evaluate their fit.")
-
+st.caption("Upload a candidate's resume (PDF, TXT, or Image) and let the AI evaluate their fit.")
 
 # --- Periodic Heartbeat ---
-# Registers this app as a system with GovernAI once (no raw_prediction, so no
-# fake drift/bias gets logged), then starts a background job that pings
-# /heartbeat every N minutes for as long as the app is open. This lets
-# GovernAI show the system as continuously monitored, not just active when
-# someone actually evaluates a resume.
-#
-# @st.cache_resource ensures this only runs ONCE per server process, even
-# though Streamlit re-runs this whole script on every widget interaction.
 @st.cache_resource
 def register_system_and_start_heartbeat():
     system_id = None
@@ -70,7 +61,6 @@ def register_system_and_start_heartbeat():
 
     return system_id
 
-
 _heartbeat_system_id = register_system_and_start_heartbeat()
 
 if _heartbeat_system_id:
@@ -81,9 +71,6 @@ else:
 st.divider()
 
 # --- Job Profiles ---
-# Each profile drives both the prompt sent to the LLM and the keyword fallback,
-# so the demo can visibly show role-specific governance (different skill sets,
-# different risk framing) rather than one hardcoded role.
 JOB_PROFILES = {
     "Python Backend Engineer": {
         "requirements": "Python, SQL, REST APIs, Git, AWS",
@@ -111,7 +98,7 @@ role_skills = JOB_PROFILES[selected_role]["skills"]
 st.caption(f"**Requirements for {selected_role}:** {role_requirements}")
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("Upload Resume (PDF or TXT)", type=["pdf", "txt"])
+uploaded_file = st.file_uploader("Upload Resume (PDF, TXT, or Image)", type=["pdf", "txt", "png", "jpg", "jpeg"])
 
 def extract_text(file):
     if file.name.endswith(".pdf"):
@@ -121,7 +108,7 @@ def extract_text(file):
     return str(file.read(), "utf-8")
 
 def screen_with_llm(text: str, role: str, requirements: str, skills: list) -> dict:
-    """Evaluate resume with OpenAI or fall back to keyword rules."""
+    """Evaluate resume text with OpenAI or fall back to keyword rules."""
     prompt = f"""You are an AI recruitment assistant. Evaluate this resume for a {role} role.
 Requirements: {requirements}.
 
@@ -141,7 +128,12 @@ Resume:
                 messages=[{"role": "user", "content": prompt}],
                 timeout=15
             )
-            return json.loads(response.choices[0].message.content)
+            content = response.choices[0].message.content.strip()
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.endswith("```"):
+                content = content[:-3]
+            return json.loads(content)
         except Exception:
             pass
 
@@ -154,33 +146,84 @@ Resume:
         "justification": f"Matched {len(matches)}/{len(skills)} required skills for {role}: {', '.join(matches) or 'none'}."
     }
 
+def screen_image_with_llm(image_bytes: bytes, mime_type: str, role: str, requirements: str, skills: list) -> dict:
+    """Evaluate image resume with OpenAI using multimodal input."""
+    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+    
+    prompt = f"""You are an AI recruitment assistant. You will be provided with an image of a resume.
+Evaluate this resume for a {role} role based on these requirements: {requirements}.
+
+First, transcribe the resume content accurately. Then determine the fit.
+
+Output ONLY valid JSON in this format:
+{{
+  "transcription": "<full text of the resume extracted from the image>",
+  "decision": "Shortlisted" or "Rejected",
+  "score": <0.0-1.0>,
+  "justification": "<short reason>"
+}}"""
+
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                timeout=25
+            )
+            content = response.choices[0].message.content.strip()
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.endswith("```"):
+                content = content[:-3]
+            return json.loads(content)
+        except Exception as e:
+            print(f"Error in image evaluation: {e}")
+            pass
+
+    return {
+        "transcription": "Image uploaded, but API key missing or call failed.",
+        "decision": "Rejected",
+        "score": 0.0,
+        "justification": "Could not evaluate image resume because OpenAI API key is missing or the request timed out."
+    }
+
 if uploaded_file:
-    resume_text = extract_text(uploaded_file)
-    st.success(f"✅ Resume loaded: **{uploaded_file.name}** ({len(resume_text)} characters)")
+    is_image = uploaded_file.name.lower().endswith((".png", ".jpg", ".jpeg"))
+    
+    if is_image:
+        st.success(f"✅ Image Resume loaded: **{uploaded_file.name}**")
+        st.image(uploaded_file, caption="Uploaded Resume Image", use_container_width=True)
+        resume_text = ""  # Will be populated by LLM vision transcription
+    else:
+        resume_text = extract_text(uploaded_file)
+        st.success(f"✅ Resume loaded: **{uploaded_file.name}** ({len(resume_text)} characters)")
 
     if st.button("Evaluate Candidate", type="primary"):
-
-        # Step 1: Kiji PII masking
-        masked_text = resume_text
-        kiji_active = False
-        with st.spinner("Step 1/3 — Running PII masking..."):
-            try:
-                resp = requests.post(KIJI_PROXY_URL, json={"message": resume_text}, timeout=3)
-                if resp.status_code == 200:
-                    masked_text = resp.json().get("masked_message", resume_text)
-                    kiji_active = True
-            except Exception:
-                pass
-
-        if kiji_active:
-            st.info("🔒 Kiji PII Proxy active — candidate data redacted before LLM call.")
-        else:
-            st.warning("⚠️ Kiji offline — sending without PII masking.")
-
-        # Step 2: LLM Screening
-        with st.spinner(f"Step 2/3 — Evaluating for {selected_role}..."):
-            time.sleep(0.5)
-            result = screen_with_llm(masked_text, selected_role, role_requirements, role_skills)
+        # Step 1: LLM Screening
+        with st.spinner(f"Evaluating resume for {selected_role}..."):
+            if is_image:
+                image_bytes = uploaded_file.getvalue()
+                mime_type = "image/png" if uploaded_file.name.lower().endswith(".png") else "image/jpeg"
+                result = screen_image_with_llm(image_bytes, mime_type, selected_role, role_requirements, role_skills)
+                resume_text = result.get("transcription", "")
+            else:
+                result = screen_with_llm(resume_text, selected_role, role_requirements, role_skills)
 
         decision = result.get("decision", "Rejected")
         score = result.get("score", 0.0)
@@ -192,14 +235,12 @@ if uploaded_file:
         else:
             st.error(f"## ❌ Decision: {decision}")
 
-        col1, col2 = st.columns(2)
-        col1.metric("Skill Match Score", f"{int(score * 100)}%")
-        col2.metric("Kiji PII Masking", "Active ✅" if kiji_active else "Offline ⚠️")
+        st.metric("Skill Match Score", f"{int(score * 100)}%")
         st.markdown(f"**Role Evaluated:** {selected_role}")
         st.markdown(f"**AI Justification:** {justification}")
 
-        # Step 3: GovernAI Telemetry
-        with st.spinner("Step 3/3 — Logging to GovernAI..."):
+        # Step 2: GovernAI Telemetry
+        with st.spinner("Logging evaluation to GovernAI..."):
             payload = {
                 "system_metadata": {
                     "name": "HR Resume Screener AI",
@@ -212,10 +253,10 @@ if uploaded_file:
                 "compliance_evidence": {
                     "documentation_url": "https://wiki.beinex.com/hr-ai-screener",
                     "human_in_loop": True,
-                    "privacy_filters": kiji_active
+                    "privacy_filters": False
                 },
                 "raw_prediction": {
-                    "input_text": masked_text[:2000],
+                    "input_text": resume_text[:2000],
                     "output_text": decision,
                     "confidence_score": score
                 }
@@ -223,7 +264,6 @@ if uploaded_file:
             try:
                 gov_resp = requests.post(GOVERNAI_INTAKE_URL, json=payload, timeout=30)
                 if gov_resp.status_code == 200:
-
                     data = gov_resp.json()
                     st.success(f"🛡️ GovernAI logged this evaluation. System compliance status: **{data.get('compliance_status')}**")
                 else:
@@ -232,4 +272,4 @@ if uploaded_file:
                 st.error(f"Could not reach GovernAI backend: {e}")
 
 st.divider()
-st.caption("Monitored by GovernAI | PII Protected by Kiji Privacy Proxy")
+st.caption("Monitored by GovernAI")
