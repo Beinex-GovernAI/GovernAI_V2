@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import pandas as pd
+from datetime import datetime, timezone, timedelta
 from database.db import SessionLocal
 from services.ai_system_svc import get_systems
 from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
@@ -185,14 +186,29 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
+        def format_to_ist(timestamp_str: str) -> str:
+            try:
+                # Replace 'Z' with UTC offset representation
+                ts = timestamp_str.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(ts)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                ist_tz = timezone(timedelta(hours=5, minutes=30))
+                dt_ist = dt.astimezone(ist_tz)
+                return dt_ist.strftime("%Y-%m-%d %H:%M:%S IST")
+            except Exception:
+                return timestamp_str.split('T')[0]
+
         st.markdown('<p class="section-label">Audit Trail</p>', unsafe_allow_html=True)
         logs = get_audit_logs(db, selected_sys_id)
         if logs:
             for log in logs[:10]:
-                with st.expander(f"{log.action} — {log.timestamp.split('T')[0]}"):
+                formatted_time = format_to_ist(log.timestamp)
+                with st.expander(f"{log.action} — {formatted_time}"):
                     st.markdown(f"<p style='color:#E6EDF3;font-size:0.85rem;'><strong>User:</strong> {log.user}</p>", unsafe_allow_html=True)
                     st.json(log.details)
         else:
             st.markdown('<p style="color:#7D9A7D;font-size:0.85rem;">No audit logs.</p>', unsafe_allow_html=True)
+
 
 db.close()
