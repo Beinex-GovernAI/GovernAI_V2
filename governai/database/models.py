@@ -134,3 +134,15 @@ class RawPrediction(Base):
     created_at = Column(String, default=utcnow)
 
     system = relationship("AISystem", back_populates="raw_predictions")
+
+class FrameworkVersion(Base):
+    __tablename__ = "framework_versions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    framework_name = Column(String, nullable=False, unique=True)
+    official_url = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    last_checked = Column(String, default=utcnow)
+    last_updated = Column(String, default=utcnow)
+    content_hash = Column(String)
+    controls_json = Column(String, nullable=False)  # JSON string of controls dict keying risk tier to list of controls

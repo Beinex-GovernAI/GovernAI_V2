@@ -7,7 +7,7 @@ from database.db import engine, Base
 # Import all models to ensure they are registered with Base before creating tables
 from database.models import (
     AISystem, DataSource, RiskAssessment, RiskClassificationAnswer,
-    ComplianceRecord, MonitoringMetric, AuditLog, AgentActionTrace
+    ComplianceRecord, MonitoringMetric, AuditLog, AgentActionTrace, FrameworkVersion
 )
 
 def init_db():
