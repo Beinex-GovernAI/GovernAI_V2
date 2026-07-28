@@ -128,14 +128,19 @@ Resume:
                 messages=[{"role": "user", "content": prompt}],
                 timeout=15
             )
-            content = response.choices[0].message.content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.endswith("```"):
-                content = content[:-3]
-            return json.loads(content)
-        except Exception:
-            pass
+            raw_content = response.choices[0].message.content
+            print(f"[DEBUG] raw LLM output: {repr(raw_content)}")
+
+            # Strip markdown code fences if the model wrapped the JSON (e.g. ```json ... ```)
+            cleaned = raw_content.strip()
+            if cleaned.startswith("```"):
+                cleaned = cleaned.strip("`")
+                cleaned = cleaned.replace("json", "", 1).strip()
+
+            print("[DEBUG] LLM scoring SUCCEEDED")
+            return json.loads(cleaned)
+        except Exception as e:
+            print(f"[DEBUG] LLM scoring FAILED, falling back to keywords. Reason: {e}")
 
     # Keyword fallback, using the selected role's skill list
     matches = [s for s in skills if s in text.lower()]

@@ -16,6 +16,8 @@ DATABASE_URL = os.environ.get(
 
 engine = create_engine(
     DATABASE_URL,
+    pool_pre_ping=True,   # tests each connection before using it, reconnects if dead
+    pool_recycle=300,
     echo=False,
     connect_args={"prepare_threshold": None},
 )
