@@ -67,11 +67,28 @@ FRAMEWORK_CONTROLS = {
     "SDAIA AI Ethics Principles": SDAIA_CONTROLS
 }
 
+def get_framework_controls(db: Session) -> dict:
+    """Dynamically loads framework controls from DB FrameworkVersion table with static fallback."""
+    import json
+    from database.models import FrameworkVersion
+    from services.framework_sync_svc import init_framework_versions
+
+    try:
+        init_framework_versions(db)
+        fw_records = db.query(FrameworkVersion).all()
+        if fw_records:
+            dynamic_controls = {}
+            for fw in fw_records:
+                dynamic_controls[fw.framework_name] = json.loads(fw.controls_json)
+            return dynamic_controls
+    except Exception:
+        pass
+    return FRAMEWORK_CONTROLS
+
 def generate_checklists(db: Session, system_id: str, frameworks: list = None):
     """
     Generates compliance records for the given system, based on its risk tier.
-    By default generates checklists for ALL supported frameworks (EU AI Act + NIST AI RMF).
-    Pass `frameworks=["NIST AI RMF"]` to generate only a specific one.
+    Loads dynamic framework controls from DB.
     """
     system = db.query(AISystem).filter(AISystem.id == system_id).first()
     if not system or system.risk_tier == "Pending":
@@ -81,14 +98,16 @@ def generate_checklists(db: Session, system_id: str, frameworks: list = None):
     if tier == "Prohibited":
         return []
 
+    all_controls = get_framework_controls(db)
+
     if frameworks is None:
-        frameworks = list(FRAMEWORK_CONTROLS.keys())
+        frameworks = list(all_controls.keys())
 
     existing = db.query(ComplianceRecord).filter(ComplianceRecord.system_id == system_id).all()
     existing_keys = {(r.framework, r.control_id) for r in existing}
 
     for framework_name in frameworks:
-        controls = FRAMEWORK_CONTROLS.get(framework_name, {}).get(tier, [])
+        controls = all_controls.get(framework_name, {}).get(tier, [])
         for ctrl in controls:
             key = (framework_name, ctrl["id"])
             if key not in existing_keys:

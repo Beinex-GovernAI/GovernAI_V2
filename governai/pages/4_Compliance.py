@@ -3,6 +3,7 @@ import os
 from database.db import SessionLocal
 from services.ai_system_svc import get_systems
 from services.compliance_svc import generate_checklists, get_compliance_score, update_compliance_record
+from services.framework_sync_svc import get_all_framework_versions, sync_frameworks
 
 st.set_page_config(page_title="Compliance", page_icon="📋", layout="wide")
 
@@ -16,6 +17,45 @@ load_css()
 st.title(" Compliance Checklists")
 
 db = SessionLocal()
+
+# ── Framework Sync Service Overview ──
+with st.expander("🌐 Official AI Framework Synchronization Engine", expanded=False):
+    st.markdown("""
+    *GovernAI automatically checks official governance sources (EU AI Act, NIST AI RMF, SDAIA, UAE Charter) for updates and extracts latest controls via LLM.*
+    """)
+    fw_versions = get_all_framework_versions(db)
+    
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("Sync Frameworks", use_container_width=True):
+            with st.spinner("Checking official sources & extracting latest controls via LLM..."):
+                synced = sync_frameworks(db, force_update=True)
+                if synced:
+                    st.success(f"Updated frameworks: {', '.join(synced)}")
+                else:
+                    st.info("All frameworks are up to date.")
+                st.rerun()
+
+    with col1:
+        st.markdown("##### Currently Tracked Framework Versions")
+
+    cols = st.columns(len(fw_versions) if fw_versions else 1)
+    for idx, fw in enumerate(fw_versions):
+        with cols[idx]:
+            last_sync_date = fw.last_checked[:10] if fw.last_checked else "N/A"
+            st.markdown(
+                f"""
+                <div class="gov-card" style="padding: 0.75rem; margin-bottom: 0.5rem;">
+                    <div style="font-weight: 600; font-size: 0.9rem; color: #1E293B;">{fw.framework_name}</div>
+                    <div style="font-size: 0.8rem; color: #64748B;">Version: <b style="color: #0F172A;">{fw.version}</b></div>
+                    <div style="font-size: 0.75rem; color: #10B981; margin-top: 0.25rem;">✓ Updated Automatically</div>
+                    <div style="font-size: 0.75rem; color: #64748B; margin-top: 0.25rem;">Last Synced: {last_sync_date}</div>
+                    <div style="font-size: 0.75rem; margin-top: 0.25rem;"><a href="{fw.official_url}" target="_blank" style="color: #2563EB; text-decoration: none;">Official Source ↗</a></div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
 systems = get_systems(db)
 
 # Matches the same tier values used on the Dashboard
