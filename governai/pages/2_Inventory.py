@@ -3,6 +3,7 @@ import os
 from database.db import SessionLocal
 from services.ai_system_svc import get_systems, create_system, update_system, delete_system
 from reports.report_gen import generate_pdf_report
+from services.permissions_svc import has_permission, current_role
 
 st.set_page_config(page_title="Inventory", layout="wide")
 
@@ -17,6 +18,11 @@ st.title(" AI System Inventory")
 
 db = SessionLocal()
 current_user = st.session_state.get("current_user", "Admin")
+role = current_role()
+can_edit = has_permission(role, "edit_ai_system_metadata")
+
+if not can_edit:
+    st.caption(f"🔒 {role} has view-only access to the AI System Inventory.")
 
 TIER_CLASS = {
     "High": "tier-high",
@@ -33,7 +39,10 @@ STATUS_CLASS = {
     "Pending": "status-pending",
 }
 
-tab1, tab2 = st.tabs(["View Systems", "Add New System"])
+if can_edit:
+    tab1, tab2 = st.tabs(["View Systems", "Add New System"])
+else:
+    tab1, = st.tabs(["View Systems"])
 
 with tab1:
     st.markdown('<p class="section-label">Registered AI Systems</p>', unsafe_allow_html=True)
@@ -47,8 +56,8 @@ with tab1:
             status_class = STATUS_CLASS.get(status, "status-pending")
 
             # ── System summary card with top-right delete icon ──
-            delete_pending = st.session_state.get(f'delete_confirm_{sys.id}', False)
-            edit_pending = st.session_state.get(f'editing_{sys.id}', False)
+            delete_pending = can_edit and st.session_state.get(f'delete_confirm_{sys.id}', False)
+            edit_pending = can_edit and st.session_state.get(f'editing_{sys.id}', False)
 
             if delete_pending:
                 # Standardized Warning Card asking for confirmation
@@ -65,7 +74,7 @@ with tab1:
                     """,
                     unsafe_allow_html=True
                 )
-                
+
                 # Action Buttons
                 btn_col1, btn_col2, _ = st.columns([3, 3, 6])
                 with btn_col1:
@@ -80,11 +89,11 @@ with tab1:
                             st.toast(f"Failed to delete '{sys.name}': {e}", icon="⚠️")
                 with btn_col2:
                     st.markdown('<div class="cancel-btn-wrapper"></div>', unsafe_allow_html=True)
-                    st.button("Cancel", key=f"cancel_top_{sys.id}", help="Cancel", 
+                    st.button("Cancel", key=f"cancel_top_{sys.id}", help="Cancel",
                               on_click=lambda s_id=sys.id: st.session_state.pop(f'delete_confirm_{s_id}', None))
-                
+
                 st.markdown('<div style="margin-bottom: 1rem;"></div>', unsafe_allow_html=True)
-            
+
             elif edit_pending:
                 st.markdown(f"""
                     <div class="gov-card" style="border-color: #4ADE4A; background-color: #0E1117;">
@@ -116,7 +125,7 @@ with tab1:
                     st.markdown("<br>", unsafe_allow_html=True)
                     agentic_trace_required_e = st.radio("Is Agentic Trace Required?", ["Yes", "No"], index=0 if (sys.agentic_trace_required == "Yes") else 1)
                     st.markdown("<br>", unsafe_allow_html=True)
-                    
+
                     col_sub, col_can = st.columns(2)
                     with col_sub:
                         submit_edit = st.form_submit_button("Update System")
@@ -142,7 +151,11 @@ with tab1:
                         st.error(f"Failed to update system: {e}")
 
             else:
-                card_col, action_col = st.columns([9.5, 2.5])
+                if can_edit:
+                    card_col, action_col = st.columns([9.5, 2.5])
+                else:
+                    card_col = st.container()
+
                 with card_col:
                     st.markdown(
                         f"""
@@ -156,18 +169,19 @@ with tab1:
                         """,
                         unsafe_allow_html=True,
                     )
-                with action_col:
-                    st.markdown('<div style="margin-top: 0.5rem;"></div>', unsafe_allow_html=True)
-                    edit_col, del_col = st.columns([1, 1])
-                    with edit_col:
-                        st.markdown('<div class="edit-btn-wrapper"></div>', unsafe_allow_html=True)
-                        st.button("Edit", key=f"top_edit_{sys.id}", help="Edit this system",
-                                  on_click=lambda s_id=sys.id: st.session_state.update({f'editing_{s_id}': True}))
-                    with del_col:
-                        st.markdown('<div class="delete-icon-wrapper"></div>', unsafe_allow_html=True)
-                        st.button("Delete", key=f"top_delete_{sys.id}", help="Delete this system",
-                                  on_click=lambda s_id=sys.id: st.session_state.update({f'delete_confirm_{s_id}': True}))
-
+                if can_edit:
+                    with action_col:
+                        st.markdown('<div style="margin-top: 0.5rem;"></div>', unsafe_allow_html=True)
+                        edit_col, del_col = st.columns([1, 1])
+                        with edit_col:
+                            st.markdown('<div class="edit-btn-wrapper"></div>', unsafe_allow_html=True)
+                            st.button("Edit", key=f"top_edit_{sys.id}", help="Edit this system",
+                                      on_click=lambda s_id=sys.id: st.session_state.update({f'editing_{s_id}': True}))
+                        with del_col:
+                            st.markdown('<div class="delete-icon-wrapper"></div>', unsafe_allow_html=True)
+                            st.button("Delete", key=f"top_delete_{sys.id}", help="Delete this system",
+                                      on_click=lambda s_id=sys.id: st.session_state.update({f'delete_confirm_{s_id}': True}))
+                st.write("")
                 # Expander for details only shown when not editing/deleting
                 with st.expander(sys.name):
                     st.markdown(f"""
@@ -210,39 +224,40 @@ with tab1:
     else:
         st.info("No AI systems registered yet.")
 
-with tab2:
-    st.markdown('<p class="section-label">Register New AI System</p>', unsafe_allow_html=True)
-    with st.form("new_system_form"):
-        name = st.text_input("System Name")
-        owner = st.text_input("Owner (Department/Person)")
-        business_purpose = st.text_area("Business Purpose")
-        model_vendor = st.text_input("Model Vendor (e.g., OpenAI, Anthropic, In-house)")
+if can_edit:
+    with tab2:
+        st.markdown('<p class="section-label">Register New AI System</p>', unsafe_allow_html=True)
+        with st.form("new_system_form"):
+            name = st.text_input("System Name")
+            owner = st.text_input("Owner (Department/Person)")
+            business_purpose = st.text_area("Business Purpose")
+            model_vendor = st.text_input("Model Vendor (e.g., OpenAI, Anthropic, In-house)")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            model_type = st.selectbox("Model Type", ["LLM", "Classical ML", "Computer Vision", "Agentic AI"])
-        with col2:
-            model_source = st.selectbox("Model Source", ["Proprietary", "Open Source"])
+            col1, col2 = st.columns(2)
+            with col1:
+                model_type = st.selectbox("Model Type", ["LLM", "Classical ML", "Computer Vision", "Agentic AI"])
+            with col2:
+                model_source = st.selectbox("Model Source", ["Proprietary", "Open Source"])
 
-        agentic_trace_required = st.radio("Is Agentic Trace Required?", ["Yes", "No"], index=1)
+            agentic_trace_required = st.radio("Is Agentic Trace Required?", ["Yes", "No"], index=1)
 
-        submit_button = st.form_submit_button("Register System")
+            submit_button = st.form_submit_button("Register System")
 
-        if submit_button:
-            if name and owner:
-                system_data = {
-                    "name": name,
-                    "owner": owner,
-                    "business_purpose": business_purpose,
-                    "model_vendor": model_vendor,
-                    "model_type": model_type,
-                    "model_source": model_source,
-                    "agentic_trace_required": agentic_trace_required,
-                }
-                create_system(db, system_data, current_user)
-                st.success(f"System '{name}' registered successfully!")
-                st.rerun()
-            else:
-                st.error("Name and Owner are required fields.")
+            if submit_button:
+                if name and owner:
+                    system_data = {
+                        "name": name,
+                        "owner": owner,
+                        "business_purpose": business_purpose,
+                        "model_vendor": model_vendor,
+                        "model_type": model_type,
+                        "model_source": model_source,
+                        "agentic_trace_required": agentic_trace_required,
+                    }
+                    create_system(db, system_data, current_user)
+                    st.success(f"System '{name}' registered successfully!")
+                    st.rerun()
+                else:
+                    st.error("Name and Owner are required fields.")
 
 db.close()

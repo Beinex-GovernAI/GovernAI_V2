@@ -6,6 +6,7 @@ from database.db import SessionLocal
 from services.ai_system_svc import get_systems
 from services.monitoring_svc import DEFAULT_THRESHOLDS, ingest_metrics_from_csv, get_metrics
 from services.audit_svc import get_audit_logs
+from services.permissions_svc import has_permission, current_role
 
 st.set_page_config(page_title="Monitoring", layout="wide")
 
@@ -57,6 +58,9 @@ st.title("System Monitoring & Alerts")
 
 db = SessionLocal()
 current_user = st.session_state.get("current_user", "Admin")
+role = current_role()
+can_ingest = has_permission(role, "ingest_telemetry")
+
 
 systems = get_systems(db)
 
@@ -95,11 +99,15 @@ else:
 
     with col1:
         st.markdown('<p class="section-label">Upload Metric Data (CSV)</p>', unsafe_allow_html=True)
-        st.info(
-            "Upload a CSV with columns **metric_name** and **metric_value** to ingest real "
-            "monitoring data. Threshold breaches will automatically trigger status updates "
-            "and audit logging (the Golden Thread)."
-        )
+
+        if can_ingest:
+            st.info(
+                "Upload a CSV with columns **metric_name** and **metric_value** to ingest real "
+                "monitoring data. Threshold breaches will automatically trigger status updates "
+                "and audit logging (the Golden Thread)."
+            )
+        else:
+            st.caption(f"🔒 {role} has view-only access to monitoring data ingestion.")
 
         st.markdown(f"""
         <div class="gov-card">
@@ -108,35 +116,36 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        uploaded_file = st.file_uploader(" Choose a CSV file", type=["csv"], key=f"csv_uploader_{selected_sys_id}")
+        if can_ingest:
+            uploaded_file = st.file_uploader(" Choose a CSV file", type=["csv"], key=f"csv_uploader_{selected_sys_id}")
 
-        if uploaded_file is not None:
-            if st.button("Ingest CSV"):
-                try:
-                    result = ingest_metrics_from_csv(db, selected_sys_id, uploaded_file, current_user)
+            if uploaded_file is not None:
+                if st.button("Ingest CSV"):
+                    try:
+                        result = ingest_metrics_from_csv(db, selected_sys_id, uploaded_file, current_user)
 
-                    # Track which rows came from this specific upload so the
-                    # "Recent Upload" tab shows only this batch. This gets
-                    # overwritten on every new ingest, so the previous batch
-                    # automatically falls into "Full History".
-                    st.session_state[f"recent_ids_{selected_sys_id}"] = [
-                        m.id for m in result["ingested"]
-                    ]
+                        # Track which rows came from this specific upload so the
+                        # "Recent Upload" tab shows only this batch. This gets
+                        # overwritten on every new ingest, so the previous batch
+                        # automatically falls into "Full History".
+                        st.session_state[f"recent_ids_{selected_sys_id}"] = [
+                            m.id for m in result["ingested"]
+                        ]
 
-                    st.success(
-                        f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
-                    )
+                        st.success(
+                            f"Ingested {len(result['ingested'])} of {result['total_rows']} rows successfully."
+                        )
 
-                    if result["errors"]:
-                        st.warning("Some rows had issues:")
-                        for err in result["errors"]:
-                            st.write(f"- {err}")
+                        if result["errors"]:
+                            st.warning("Some rows had issues:")
+                            for err in result["errors"]:
+                                st.write(f"- {err}")
 
-                    st.rerun()
-                except ValueError as e:
-                    st.error(str(e))
-                except Exception as e:
-                    st.error(f"Failed to process CSV: {e}")
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(str(e))
+                    except Exception as e:
+                        st.error(f"Failed to process CSV: {e}")
 
         st.markdown('<p class="section-label">Metric Data</p>', unsafe_allow_html=True)
         tab1, tab2 = st.tabs(["Recent Upload", "Full History"])

@@ -4,6 +4,7 @@ from database.db import SessionLocal
 from services.ai_system_svc import get_systems
 from services.compliance_svc import generate_checklists, get_compliance_score, update_compliance_record
 from services.framework_sync_svc import get_all_framework_versions, sync_frameworks
+from services.permissions_svc import has_permission, current_role
 
 st.set_page_config(page_title="Compliance", page_icon="📋", layout="wide")
 
@@ -16,6 +17,10 @@ load_css()
 
 st.title(" Compliance Checklists")
 
+role = current_role()
+can_sync = has_permission(role, "sync_frameworks")
+can_edit_controls = has_permission(role, "change_compliance_status")
+
 db = SessionLocal()
 
 # ── Framework Sync Service Overview ──
@@ -24,17 +29,21 @@ with st.expander("🌐 Official AI Framework Synchronization Engine", expanded=F
     *GovernAI automatically checks official governance sources (EU AI Act, NIST AI RMF, SDAIA, UAE Charter) for updates and extracts latest controls via LLM.*
     """)
     fw_versions = get_all_framework_versions(db)
-    
+
     col1, col2 = st.columns([3, 1])
     with col2:
-        if st.button("Sync Frameworks", use_container_width=True):
-            with st.spinner("Checking official sources & extracting latest controls via LLM..."):
-                synced = sync_frameworks(db, force_update=True)
-                if synced:
-                    st.success(f"Updated frameworks: {', '.join(synced)}")
-                else:
-                    st.info("All frameworks are up to date.")
-                st.rerun()
+        if can_sync:
+            if st.button("Sync Frameworks", use_container_width=True):
+                with st.spinner("Checking official sources & extracting latest controls via LLM..."):
+                    synced = sync_frameworks(db, force_update=True)
+                    if synced:
+                        st.success(f"Updated frameworks: {', '.join(synced)}")
+                    else:
+                        st.info("All frameworks are up to date.")
+                    st.rerun()
+        else:
+            st.button("Sync Frameworks", use_container_width=True, disabled=True,
+                       help=f"{role} cannot sync frameworks")
 
     with col1:
         st.markdown("##### Currently Tracked Framework Versions")
@@ -58,7 +67,6 @@ with st.expander("🌐 Official AI Framework Synchronization Engine", expanded=F
 
 systems = get_systems(db)
 
-# Matches the same tier values used on the Dashboard
 TIER_CLASS = {
     "High": "tier-high",
     "Limited": "tier-limited",
@@ -152,15 +160,19 @@ else:
                 )
 
                 with st.expander(record.control_id):
+                    if not can_edit_controls:
+                        st.caption(f"🔒 {role} has view-only access to compliance controls.")
                     with st.form(f"form_{record.id}"):
-                        is_met = st.checkbox("Control Met?", value=bool(record.is_met))
+                        is_met = st.checkbox("Control Met?", value=bool(record.is_met), disabled=not can_edit_controls)
                         evidence = st.text_input(
                             "Evidence Link (URL or doc ref)",
                             value=record.evidence_link or "",
                             placeholder="URL or document reference...",
+                            disabled=not can_edit_controls,
                         )
 
-                        if st.form_submit_button("Save Control"):
+                        submitted = st.form_submit_button("Save Control", disabled=not can_edit_controls)
+                        if submitted and can_edit_controls:
                             current_user = st.session_state.get("current_user", "System")
                             update_compliance_record(
                                 db, record.id, 1 if is_met else 0, evidence, current_user

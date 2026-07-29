@@ -9,6 +9,7 @@ from services.llm import (
     suggest_risk_tier,
     LLMRiskAssessmentError,
 )
+from services.permissions_svc import has_permission, current_role
 
 st.set_page_config(page_title="Risk Setup", page_icon="⚖️", layout="wide")
 
@@ -23,6 +24,11 @@ st.title("Risk Classification Setup")
 
 db = SessionLocal()
 current_user = st.session_state.get("current_user", "Admin")
+role = current_role()
+can_edit_tier = has_permission(role, "edit_risk_tier")
+
+if not can_edit_tier:
+    st.caption(f"🔒 {role} has view-only access to Risk Classification.")
 
 systems = get_systems(db)
 if not systems:
@@ -78,86 +84,92 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # LLM-assisted suggestion
-    with st.expander("AI-Assisted Tier Suggestion", expanded=False):
-        st.caption(
-            "Describe the system in plain language and a local LLM (via Foundry Local) "
-            "will suggest a likely EU AI Act tier with an explanation. This is advisory "
-            "only -- it does not save anything and does not replace the questionnaire below."
-        )
-        description = st.text_area(
-            "Plain-language system description",
-            placeholder=(
-                "e.g. 'An internal tool that screens incoming resumes and ranks "
-                "candidates before a recruiter reviews them.'"
-            ),
-            key="llm_risk_description",
-        )
+    # LLM-assisted suggestion — gated same as the questionnaire
+    if can_edit_tier:
+        with st.expander("AI-Assisted Tier Suggestion", expanded=False):
+            st.caption(
+                "Describe the system in plain language and a local LLM (via Foundry Local) "
+                "will suggest a likely EU AI Act tier with an explanation. This is advisory "
+                "only -- it does not save anything and does not replace the questionnaire below."
+            )
+            description = st.text_area(
+                "Plain-language system description",
+                placeholder=(
+                    "e.g. 'An internal tool that screens incoming resumes and ranks "
+                    "candidates before a recruiter reviews them.'"
+                ),
+                key="llm_risk_description",
+            )
 
-        if st.button("Suggest Risk Tier", key="llm_suggest_btn"):
-            if not description or not description.strip():
-                st.warning("Please enter a system description first.")
-            else:
-                with st.spinner("Asking the local model..."):
-                    try:
-                        suggestion = suggest_risk_tier(description)
-                    except LLMRiskAssessmentError as e:
-                        st.error(f"Couldn't generate a suggestion: {e}")
-                    except Exception as e:
-                        st.error(f"Unexpected error: {e}")
-                    else:
-                        suggested_class = {
-                            "High": "tier-high",
-                            "Limited": "tier-limited",
-                            "Minimal": "tier-minimal",
-                            "Prohibited": "tier-high",
-                        }.get(suggestion.internal_tier, "tier-pending")
+            if st.button("Suggest Risk Tier", key="llm_suggest_btn"):
+                if not description or not description.strip():
+                    st.warning("Please enter a system description first.")
+                else:
+                    with st.spinner("Asking the local model..."):
+                        try:
+                            suggestion = suggest_risk_tier(description)
+                        except LLMRiskAssessmentError as e:
+                            st.error(f"Couldn't generate a suggestion: {e}")
+                        except Exception as e:
+                            st.error(f"Unexpected error: {e}")
+                        else:
+                            suggested_class = {
+                                "High": "tier-high",
+                                "Limited": "tier-limited",
+                                "Minimal": "tier-minimal",
+                                "Prohibited": "tier-high",
+                            }.get(suggestion.internal_tier, "tier-pending")
 
-                        st.markdown(f"""
-                        <div class="gov-card" style="margin-top:0.75rem;">
-                            <div style="margin-bottom:0.5rem;">
-                                <span style="color:#7D9A7D;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">Suggested Tier&nbsp;&nbsp;</span>
-                                <span class="{suggested_class}">{suggestion.eu_ai_act_label}</span>
-                            </div>
-                            <p style="color:#E6EDF3;font-size:0.88rem;margin:0.4rem 0;">{suggestion.explanation}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                        if suggestion.key_factors:
-                            st.markdown('<p class="section-label" style="margin-top:0.75rem;">Key Factors</p>', unsafe_allow_html=True)
-                            for factor in suggestion.key_factors:
-                                st.markdown(f"<div style='color:#E6EDF3;font-size:0.85rem;padding:0.15rem 0;'>• {factor}</div>", unsafe_allow_html=True)
-
-                        if suggestion.masked_text and suggestion.masked_text != description:
                             st.markdown(f"""
-                            <div class="gov-card" style="margin-top:0.75rem; border: 1px dashed #4ADE4A;">
+                            <div class="gov-card" style="margin-top:0.75rem;">
                                 <div style="margin-bottom:0.5rem;">
-                                    <span style="color:#4ADE4A;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">🔐 Data Privacy Filter Active&nbsp;&nbsp;</span>
+                                    <span style="color:#7D9A7D;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">Suggested Tier&nbsp;&nbsp;</span>
+                                    <span class="{suggested_class}">{suggestion.eu_ai_act_label}</span>
                                 </div>
-                                <p style="color:#E6EDF3;font-size:0.85rem;margin:0.4rem 0;">Sent to LLM as: <em>"{suggestion.masked_text}"</em></p>
+                                <p style="color:#E6EDF3;font-size:0.88rem;margin:0.4rem 0;">{suggestion.explanation}</p>
                             </div>
                             """, unsafe_allow_html=True)
 
-                        st.caption(
-                            f"Model: `{suggestion.model_used}` · "
-                            f"Endpoint discovery: `{suggestion.discovery_mode}`"
-                        )
+                            if suggestion.key_factors:
+                                st.markdown('<p class="section-label" style="margin-top:0.75rem;">Key Factors</p>', unsafe_allow_html=True)
+                                for factor in suggestion.key_factors:
+                                    st.markdown(f"<div style='color:#E6EDF3;font-size:0.85rem;padding:0.15rem 0;'>• {factor}</div>", unsafe_allow_html=True)
 
-                        log_action(
-                            db,
-                            selected_sys_id,
-                            current_user,
-                            "LLM_RISK_SUGGESTION",
-                            {
-                                "description": description,
-                                "suggested_tier": suggestion.internal_tier,
-                                "eu_ai_act_label": suggestion.eu_ai_act_label,
-                                "model_used": suggestion.model_used,
-                            },
-                        )
+                            if suggestion.masked_text and suggestion.masked_text != description:
+                                st.markdown(f"""
+                                <div class="gov-card" style="margin-top:0.75rem; border: 1px dashed #4ADE4A;">
+                                    <div style="margin-bottom:0.5rem;">
+                                        <span style="color:#4ADE4A;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;">🔐 Data Privacy Filter Active&nbsp;&nbsp;</span>
+                                    </div>
+                                    <p style="color:#E6EDF3;font-size:0.85rem;margin:0.4rem 0;">Sent to LLM as: <em>"{suggestion.masked_text}"</em></p>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            st.caption(
+                                f"Model: `{suggestion.model_used}` · "
+                                f"Endpoint discovery: `{suggestion.discovery_mode}`"
+                            )
+
+                            log_action(
+                                db,
+                                selected_sys_id,
+                                current_user,
+                                "LLM_RISK_SUGGESTION",
+                                {
+                                    "description": description,
+                                    "suggested_tier": suggestion.internal_tier,
+                                    "eu_ai_act_label": suggestion.eu_ai_act_label,
+                                    "model_used": suggestion.model_used,
+                                },
+                            )
+    else:
+        st.caption(f"🔒 {role} cannot access AI-Assisted Tier Suggestion.")
 
     st.markdown("---")
     st.markdown('<p class="section-label">Risk Assessment Questionnaire</p>', unsafe_allow_html=True)
+
+    if not can_edit_tier:
+        st.info(f"{role} can view the questionnaire but cannot submit changes to the risk tier.")
 
     with st.form("risk_assessment_form"):
         st.markdown(
@@ -178,14 +190,14 @@ else:
                 default_index = q["options"].index(prev_ans) if prev_ans else 0
             except ValueError:
                 default_index = 0
-                
+
             # Make the widget key unique per system so session state doesn't overlap
             widget_key = f"{selected_sys_id}_{q['key']}"
-            answers[q["key"]] = st.radio(q["text"], q["options"], index=default_index, key=widget_key)
+            answers[q["key"]] = st.radio(q["text"], q["options"], index=default_index, key=widget_key, disabled=not can_edit_tier)
 
-        submitted = st.form_submit_button("Submit Assessment")
+        submitted = st.form_submit_button("Submit Assessment", disabled=not can_edit_tier)
 
-        if submitted:
+        if submitted and can_edit_tier:
             assessment = assess_risk(db, selected_sys_id, answers, current_user)
             st.success(f"Assessment completed. Assigned Tier: **{assessment.calculated_tier}**")
             st.rerun()

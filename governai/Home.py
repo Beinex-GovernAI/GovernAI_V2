@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+from services.permissions_svc import PERMISSIONS
 
 st.set_page_config(
     page_title="GovernAI",
@@ -35,21 +36,26 @@ nav_items = [
     ("pages/5_Monitoring.py", "Monitoring", "Real-time metrics and alerts.", ":material/monitoring:"),
 ]
 
-# Create a clean grid layout (3 columns on the first row, 2 on the second)
 cols1 = st.columns(3)
 cols2 = st.columns(3)
 
 for i, (page_path, name, desc, icon) in enumerate(nav_items):
-    # Place first 3 items in the first row, next 2 in the second row
     col = cols1[i] if i < 3 else cols2[i - 3]
     with col:
         st.page_link(page_path, label=f"**{name}**\n\n{desc}", icon=icon, use_container_width=True)
 
 # Sidebar Role Selector
 st.sidebar.markdown('<p class="section-label" style="margin-top:0;">Simulation Identity</p>', unsafe_allow_html=True)
+
+role_options = list(PERMISSIONS.keys())
+current_role_value = st.session_state.get("current_user", "Admin")
+default_index = role_options.index(current_role_value) if current_role_value in role_options else 0
+
 role = st.sidebar.selectbox(
     "Current User:",
-    ["Admin", "Compliance Officer", "Engineer"]
+    role_options,
+    index=default_index,
+    key="role_selector"
 )
 
 st.session_state["current_user"] = role
@@ -61,4 +67,4 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.sidebar.info("This lightweight role selector drives the audit log trail to demonstrate realistic governance workflows.")
+st.sidebar.info("This role selector now drives real permissions across the app, not just the audit log trail.")
