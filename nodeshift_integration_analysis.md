@@ -118,7 +118,7 @@ Add a `prompt_logs` table:
 Automatically records, transcribes, and summarizes meetings (Teams, Zoom, Google Meet) on private infrastructure. Employees use it for convenience. The problem: it's the *canonical example* of Shadow AI.
 
 ### Why this matters for GovernAI / Beinex
-Grishma's key insight is correct — this isn't a feature to copy. It's a **talking point and evidence base** for the Shadow AI problem that Mebin described. Here's how to frame it:
+This isn't a feature to copy. It's a **talking point and evidence base** for the Shadow AI problem that Mebin described. Here's how to frame it:
 
 - Tools like Otter.ai, Fireflies.ai, and NodeShift's notetaker are adopted **informally** by employees because they're convenient.
 - When they're adopted informally, the organization has **zero visibility** into what meeting content (client names, project details, financial figures) is being transmitted to those external AI services.
