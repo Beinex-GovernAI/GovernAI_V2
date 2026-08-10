@@ -1,12 +1,7 @@
 # NodeShift Features → GovernAI Integration Analysis
 
-> **Context**: Mebin raised a real-world problem at Beinex — employees are using personal AI accounts (Claude, ChatGPT, Gemini) for company work, sharing potentially confidential project details with no tracking. The challenge: tracking those accounts also captures personal communications, creating a privacy conflict.
->
-> Grishma researched **NodeShift** as a potential reference architecture. Below is an analysis of each feature she found, whether it applies to GovernAI, and *exactly* how to implement it.
 
----
-
-## The Core Problem (Mebin's Challenge — Decomposed)
+## The Core Problem 
 
 | Problem | Root Cause | What's Missing |
 |---|---|---|
@@ -124,7 +119,7 @@ Add a `prompt_logs` table:
 Automatically records, transcribes, and summarizes meetings (Teams, Zoom, Google Meet) on private infrastructure. Employees use it for convenience. The problem: it's the *canonical example* of Shadow AI.
 
 ### Why this matters for GovernAI / Beinex
-Grishma's key insight is correct — this isn't a feature to copy. It's a **talking point and evidence base** for the Shadow AI problem that Mebin described. Here's how to frame it:
+This isn't a feature to copy. It's a **talking point and evidence base** for the Shadow AI problem. Here's how to frame it:
 
 - Tools like Otter.ai, Fireflies.ai, and NodeShift's notetaker are adopted **informally** by employees because they're convenient.
 - When they're adopted informally, the organization has **zero visibility** into what meeting content (client names, project details, financial figures) is being transmitted to those external AI services.
@@ -141,9 +136,9 @@ Add a **Shadow AI Detection page** (`pages/7_Shadow_AI.py`) that allows admins t
 1. Register suspected shadow tools (e.g., "Otter.ai - Meeting Transcription, used informally by Sales team").
 2. Flag the associated data risks (meeting audio contains client names → PII risk).
 3. Assign a reviewer to either sanction or ban the tool.
-4. Generate a "Shadow AI Risk Report" for Mebin's audit.
+4. Generate a "Shadow AI Risk Report" for audit.
 
-This directly addresses the problem Mebin described — it gives the governance team **visibility into informal AI adoption**.
+This directly addresses the problem — it gives the governance team **visibility into informal AI adoption**.
 
 ---
 
@@ -302,7 +297,7 @@ The user sends a real prompt with real names, gets a real answer with real names
 - **No restore step** — GovernAI currently never needs to restore because anything with detected PII was previously hardcoded to stay local (see old Feature 3 design).
 
 ### The Gap
-The old Dual-Zone Router (pre-Grishma fix) avoided this problem by routing *everything with PII* to the local model. That strategy is simpler but means **the company can never use external LLMs (Claude, GPT-4, Gemini) on any prompt that contains a name or email** — even when those are clearly non-sensitive (e.g., an employee asking Claude to summarize their own meeting notes).
+The old Dual-Zone Router avoided this problem by routing *everything with PII* to the local model. That strategy is simpler but means **the company can never use external LLMs (Claude, GPT-4, Gemini) on any prompt that contains a name or email** — even when those are clearly non-sensitive (e.g., an employee asking Claude to summarize their own meeting notes).
 
 The real Anonymisation Engine unlocks a middle path: **tokenize → send externally → restore**, allowing external LLM quality on prompts that contain tokenizable PII, while still forcing hard secrets (SSNs, credentials) local unconditionally.
 
@@ -394,7 +389,6 @@ Everything described here — Prompt Guard, Dual-Zone Router, Anonymisation Engi
 
 **It does not intercept an employee typing directly into `chatgpt.com` or `claude.ai` in a browser.** That is a fundamentally different infrastructure problem (browser proxy, DNS-level interception, or corporate network-layer filtering) and is **explicitly out of scope** for this design.
 
-This needs to be stated clearly to Mebin so he doesn't assume "masked" means "masked everywhere." The correct framing is:
 
 > *"This design governs AI usage that flows through the company-provided GovernAI gateway. Native browser use of ChatGPT/Claude on personal accounts is a separate, harder infrastructure problem — flagged as a future work item that would require network-level controls outside GovernAI's scope."*
 
@@ -404,14 +398,14 @@ This needs to be stated clearly to Mebin so he doesn't assume "masked" means "ma
 
 | Feature | Effort | Impact | Priority | Where It Lives |
 |---|---|---|---|---|
-| **Dual-Zone Router** | Medium | 🔴 Highest — directly solves Mebin's problem | **P0** | `services/llm/dual_zone_router.py` + `pages/6_Routing_Policy.py` |
+| **Dual-Zone Router** | Medium | 🔴 Highest — directly solves the problem | **P0** | `services/llm/dual_zone_router.py` + `pages/6_Routing_Policy.py` |
 | **Prompt Injection Defense** | Low | 🟠 High — runtime security gap | **P1** | `services/llm/prompt_guard.py` + `prompt_logs` table |
 | **Anonymisation Engine (Round-trip)** | Medium | 🟠 High — unlocks safe external LLM use | **P2** | `services/llm/anonymisation_engine.py` + `anonymisation_log` table |
 | **Shadow AI Registry** | Medium | 🟡 Medium — governance visibility | **P3** | `pages/7_Shadow_AI.py` + `registration_status` field |
 
 ---
 
-## How These Features Collectively Solve Mebin's Problem
+## How These Features Collectively Solves the Problem
 
 ```
 The Problem:                        The Solution (GovernAI + NodeShift features):
@@ -446,7 +440,7 @@ The **key insight** for Mebin's privacy conflict: by giving employees a **compan
 
 ---
 
-## Recommended Talking Points for Your Next Session with Mebin
+## Recommended Talking Points for Your Next Session .
 
 1. **"NodeShift's Dual-Zone Routing is the architectural answer to your problem."** — We're not tracking *personal* accounts. We're providing a *company-managed channel* so there's nothing personal to track.
 
