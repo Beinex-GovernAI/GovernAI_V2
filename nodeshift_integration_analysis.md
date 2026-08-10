@@ -135,9 +135,9 @@ Add a **Shadow AI Detection page** (`pages/7_Shadow_AI.py`) that allows admins t
 1. Register suspected shadow tools (e.g., "Otter.ai - Meeting Transcription, used informally by Sales team").
 2. Flag the associated data risks (meeting audio contains client names → PII risk).
 3. Assign a reviewer to either sanction or ban the tool.
-4. Generate a "Shadow AI Risk Report" for Mebin's audit.
+4. Generate a "Shadow AI Risk Report".
 
-This directly addresses the problem Mebin described — it gives the governance team **visibility into informal AI adoption**.
+This directly addresses the problem — it gives the governance team **visibility into informal AI adoption**.
 
 ---
 
@@ -340,7 +340,7 @@ The **key insight** for Mebin's privacy conflict: by giving employees a **compan
 
 ---
 
-## Recommended Talking Points for Your Next Session with Mebin
+## Recommended Talking Points for Your Next Session 
 
 1. **"NodeShift's Dual-Zone Routing is the architectural answer to your problem."** — We're not tracking *personal* accounts. We're providing a *company-managed channel* so there's nothing personal to track.
 
