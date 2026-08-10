@@ -1,12 +1,8 @@
 # NodeShift Features → GovernAI Integration Analysis
 
-> **Context**: Mebin raised a real-world problem at Beinex — employees are using personal AI accounts (Claude, ChatGPT, Gemini) for company work, sharing potentially confidential project details with no tracking. The challenge: tracking those accounts also captures personal communications, creating a privacy conflict.
->
-> Grishma researched **NodeShift** as a potential reference architecture. Below is an analysis of each feature she found, whether it applies to GovernAI, and *exactly* how to implement it.
-
 ---
 
-## The Core Problem (Mebin's Challenge — Decomposed)
+## The Core Problem 
 
 | Problem | Root Cause | What's Missing |
 |---|---|---|
