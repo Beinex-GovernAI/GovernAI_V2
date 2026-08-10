@@ -1,7 +1,5 @@
 # NodeShift Features → GovernAI Integration Analysis
 
----
-
 ## The Core Problem 
 
 | Problem | Root Cause | What's Missing |
